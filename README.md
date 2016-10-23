@@ -16,6 +16,10 @@ Cory Stonitsch
 
   corystonitsch@gmail.com
   
+  https://github.com/astonitsching/
+  
 Chris Bendt
 
   christophermbendt@gmail.com
+  
+  https://github.com/daholyfork/
