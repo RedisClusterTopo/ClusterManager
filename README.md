@@ -4,7 +4,7 @@ The goal of this project is to provide a visualization tool designed to improve 
 
 This tool will be delivered as a web app leveraging the ioredis library (https://github.com/luin/ioredis/) via Node.js to query Redis Cluster for information about a given deployment's topology and relay that information to client browsers. From there information will be parsed and a Cluster topology will be generated.
 
-Group Members: 
+# Group Members: 
 
 Alex Kiefer 
   akiefer6@gmail.com
