@@ -9,7 +9,9 @@ Group Members:
 Alex Kiefer 
   akiefer6@gmail.com
   https://github.com/alkief/
+  
 Cory Stonitsch
   corystonitsch@gmail.com
+  
 Chris Bendt
   christophermbendt@gmail.com
