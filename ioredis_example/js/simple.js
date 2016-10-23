@@ -1,9 +1,10 @@
 $(document).ready( function() {
-  $('#getNodesBtn').click(
+  $('#getInfoButton').click(
     function(){
-      $.post("/getNodes", null,
+      $.post("/getInfoCommand", null,
           function(data){
             console.log(data);
+            $('#info').text(data);
           });
     }
   );
