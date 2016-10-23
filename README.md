@@ -7,11 +7,15 @@ This tool will be delivered as a web app leveraging the ioredis library (https:/
 # Group Members: 
 
 Alex Kiefer 
+
   akiefer6@gmail.com
+  
   https://github.com/alkief/
   
 Cory Stonitsch
+
   corystonitsch@gmail.com
   
 Chris Bendt
+
   christophermbendt@gmail.com
