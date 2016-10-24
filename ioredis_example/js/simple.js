@@ -3,7 +3,17 @@ $(document).ready( function() {
     function(){
       $.post("/getInfoCommand", null,
           function(data){
-            console.log(data);
+            //console.log(data);
+            $('#info').text(data);
+          });
+    }
+  );
+
+  $('#getMSLength').click(
+    function(){
+      $.post("/getMSLength", null,
+          function(data){
+            //console.log(data);
             $('#info').text(data);
           });
     }
