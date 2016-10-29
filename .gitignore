@@ -4,3 +4,7 @@ redis-3.2.4
 .aof
 nodes.conf
 .rdb
+create-cluster
+redis-cli
+redis-server
+redis-trib.rb
