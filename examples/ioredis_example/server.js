@@ -62,7 +62,33 @@ var START_NODES = [
   },
 ];
 
-var cluster = new Cluster(START_NODES);
+var clusterOptions = {
+  clusterRetryStrategy: function(){
+    for(var i = 0; i < 6; i++){
+      var node = START_NODES[i];
+
+      debug("START_NODES node: " + node.host + "\t" + node.port);
+
+      meetNode(node, function(err, res){
+        if (err)
+          debug("From meetNode()");
+          debug(err);
+        if (res){
+          //debug(res.toString('utf8'));
+          //Outputs 'OK' on success
+        }
+      });
+    }
+  },
+  enableOfflineQueue: true,
+  scaleReads:  "master",
+  maxRedirections: 16,
+  retryDelayOnFailover: 500,
+  retryDelayOnClusterDown: 500,
+  retryDelayOnTryAgain: 500
+};
+
+var cluster = new Cluster(START_NODES, clusterOptions);
 
 
 //Run when cluster is initialized without error
@@ -78,7 +104,7 @@ cluster.on('error', function(err){
     debug(err);
   }
 });
-
+/*
 //Catches errors thrown on attempting to connect to the startup cluster nodes
 cluster.connect().catch(function (err) {
   //Log the error
@@ -87,6 +113,8 @@ cluster.connect().catch(function (err) {
     debug(err);
     debug("\n");
   }
+
+  manualMeet();
 
   //Begin sending the CLUSTER INFO and CLUSTER NODES command to check status
   //on an interval given by timeout in ms
@@ -98,19 +126,23 @@ cluster.connect().catch(function (err) {
           debug(error);
         }
         if(response){
+          debug("clusterInfo().response  in cluster.connect().catch");
           debug(response.toString('utf8'));
         }
       });
       nodesCmd(function(e, r){
         if(e)
           debug(e);
-        if(r)
+        if(r){
+          debug("nodesCmd().response in cluster.connect().catch");
           debug(r.toString('utf8'));
+        }
       });
     }
-      , timeout);
-});
+  , timeout);
 
+});
+*/
 
 //Called upon clicking 'Get Cluster Info' button on index.html
 app.post('/getInfoCommand', function(req, res) {
