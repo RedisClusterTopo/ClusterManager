@@ -1,0 +1,116 @@
+/*top horizontal navigation bar*/
+ul.topBar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+}
+
+li {
+    float: left;
+}
+li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+li a:hover {
+    background-color: #111;
+}
+/*verticle menu for node information*/
+ul.leftBar{
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  width: 200px;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: #333;
+}
+ul.rightBar{
+  list-style-type: none;
+  position:;
+  margin: 0;
+  padding: 0;
+  width: 579px;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: #333;
+}
+/*div for availability zone*/
+div.aZone {
+    width: 320px;
+    height: 500px;
+    padding: 10px;
+    background-color: #999;
+    border: 5px solid gray;
+    float: left; /* add this */
+}
+/*div for slave node*/
+div.sNode {
+    width: 285px;
+    height: 200px;
+    padding: 10px;
+    background-color: #357;
+    border: 5px solid gray;
+    float: left; /* add this */
+}
+/*div for master node*/
+div.mNode {
+    width: 285px;
+    height: 200px;
+    padding: 10px;
+    background-color: #256;
+    border: 5px solid gray;
+    float: left; /* add this */
+}
+/*div that contains the availability zone*/
+div.wrapper {
+    overflow: auto; /* will contain if #first is longer than #second */
+    float: left;
+}
+body {
+    white-space: nowrap;
+}
+.dropbtn {
+    background-color: #333;
+    color: white;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    float:left;
+}
+
+.dropbtn:hover, .dropbtn:focus {
+    background-color: #111;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+
+}
+
+.dropdown-content {
+    display: none;
+    background-color: #555;
+    min-width: 160px;
+    overflow: auto;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    float:left;
+}
+
+.dropdown-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+.dropdown-content a:hover {background-color: #333}
+
+.show {display:block;}
