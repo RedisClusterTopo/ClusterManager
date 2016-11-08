@@ -2,100 +2,9 @@
 <html>
 <head>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-<script src="/RedisCluster.js" type="text/javascript"></script>
-  <!--<title>HTML External CSS</title>
-  <link rel="stylesheet" type="text/css" href="/myStyle.css"/>-->
-  <style>
-  /*top horizontal navigation bar*/
-  ul.topBar {
-      list-style-type: none;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background-color: #333;
-  }
-
-  li {
-      float: left;
-  }
-  li a {
-      display: block;
-      color: white;
-      text-align: center;
-      padding: 14px 16px;
-      text-decoration: none;
-  }
-  li a:hover {
-      background-color: #111;
-  }
-  /*verticle menu for node information*/
-  ul.leftBar{
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
-    width: 200px;
-    min-height: 100vh;
-    overflow: hidden;
-    background-color: #333;
-  }
-  ul.rightBar{
-    list-style-type: none;
-    position:;
-    margin: 0;
-    padding: 0;
-    width: 579px;
-    min-height: 100vh;
-    overflow: hidden;
-    background-color: #333;
-  }
-  div.wrapper {
-      overflow: auto; /* will contain if #first is longer than #second */
-      float: left;
-  }
-  body {
-      white-space: nowrap;
-  }
-  .dropbtn {
-      background-color: #333;
-      color: white;
-      padding: 14px 16px;
-      font-size: 16px;
-      border: none;
-      cursor: pointer;
-      float:left;
-  }
-
-  .dropbtn:hover, .dropbtn:focus {
-      background-color: #111;
-  }
-
-  .dropdown {
-      position: relative;
-      display: inline-block;
-
-  }
-
-  .dropdown-content {
-      display: none;
-      background-color: #555;
-      min-width: 160px;
-      overflow: auto;
-      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-      float:left;
-  }
-
-  .dropdown-content a {
-      color: black;
-      padding: 12px 16px;
-      text-decoration: none;
-      display: block;
-  }
-
-  .dropdown-content a:hover {background-color: #333}
-
-  .show {display:block;}
-
-  </style>
+<script src="RedisCluster.js" type="text/javascript"></script>
+  <title>HTML External CSS</title>
+  <link rel="stylesheet" type="text/css" href="/myStyle.css"/>
 </head>
    <body style="background-color=#111">
      <ul class="topBar">
@@ -128,7 +37,19 @@ $(document).ready(function () {
   //your code here
   var xOffset = 0;
   var yOffset = 0;
-  //RedisCluster cluster = new RedisCluster();
+  //declaring duymmy object that would be passed from the server
+    var node1 = new Node("127.0.0.1","east","1","1000","7000");
+    var node2 = new Node("127.0.0.1","east","1","1000","7000");
+    var node3 = new Node("127.0.0.1","east","1","1000","7000");
+    var nodes = [node1,node2,node3];
+    var instance = new Instance(nodes);
+    var aZones = new AvailabilityZone(instance);
+    var cluster = new RedisCluster(aZones);
+  console.log(cluster.AvailabilityZones.Instances.Nodes.length)
+/*cluster.AvailabilityZones.Instances.Nodes.ForEach(function(instance)
+{
+    console.log(instance)
+});*/
 for (i=0;i<3;i++) {
   var svg = document.getElementsByTagName('svg')[0]; //Get svg element
   var availZone = document.createElementNS("http://www.w3.org/2000/svg", "rect");
