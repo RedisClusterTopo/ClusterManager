@@ -14,7 +14,12 @@ app.get('/', function(req, res) {
         else return console.log(err);
     });
 });
-
+app.get('/index', function(req, res) {
+    fs.readFile('/frontend_example/index.html', 'utf8', function(err, data) {
+        if (!err) res.send(data);
+        else return console.log(err);
+    });
+});
 //For setting up directory access:
 //app.use('</directory>', express.static('<directory-name>'));
 //
