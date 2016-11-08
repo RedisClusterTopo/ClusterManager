@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="/RedisCluster.js" type="text/javascript"></script>
   <!--<title>HTML External CSS</title>
-  <link rel="stylesheet" type="text/css" href="myStyle.css"/>-->
+  <link rel="stylesheet" type="text/css" href="/myStyle.css"/>-->
   <style>
   /*top horizontal navigation bar*/
   ul.topBar {
@@ -46,34 +48,6 @@
     overflow: hidden;
     background-color: #333;
   }
-  /*div for availability zone*/
-  div.aZone {
-      width: 320px;
-      height: 500px;
-      padding: 10px;
-      background-color: #999;
-      border: 5px solid gray;
-      float: left; /* add this */
-  }
-  /*div for slave node*/
-  div.sNode {
-      width: 285px;
-      height: 200px;
-      padding: 10px;
-      background-color: #357;
-      border: 5px solid gray;
-      float: left; /* add this */
-  }
-  /*div for master node*/
-  div.mNode {
-      width: 285px;
-      height: 200px;
-      padding: 10px;
-      background-color: #256;
-      border: 5px solid gray;
-      float: left; /* add this */
-  }
-  /*div that contains the availability zone*/
   div.wrapper {
       overflow: auto; /* will contain if #first is longer than #second */
       float: left;
@@ -141,46 +115,33 @@
               <a href="#">Link 3</a>
             </div>
             <li><a href="#hashSlot">Position Test</a></li>
+        </ul>
       </div>
-         </ul>
+      <div>
+        <svg width="960" height="500"></svg>
       </div>
-         <div class="aZone">AvailabilityZone
-           <div class="mNode">
-             Master: 127.0.0.1
-           </div>
-           <div class="sNode">
-             Slave: 127.0.0.1
-           </div>
-         </div>
-       <div class="aZone">AvailabilityZone
-         <div class="mNode">
-           Master: 127.0.0.1
-         </div>
-         <div class="sNode">
-           Slave: 127.0.0.1
-         </div>
-       </div>
-       <div class="aZone">AvailabilityZone
-         <div class="mNode">
-           Master: 127.0.0.1
-         </div>
-         <div class="sNode">
-           Slave: 127.0.0.1
-         </div>
-       </div>
-
-
-    <!--  <form action = "http://127.0.0.1:8081/process_get" method = "GET">
-         First Name: <input type = "text" name = "first_name">  <br>
-         Last Name: <input type = "text" name = "last_name">
-         <input type = "submit" value = "Submit">
-      </form>
-    -->
    </body>
 </html>
 <script type="text/javascript">
-/* When the user clicks on the button,
-toggle between hiding and showing the dropdown content */
+
+$(document).ready(function () {
+  //your code here
+  var xOffset = 0;
+  var yOffset = 0;
+  //RedisCluster cluster = new RedisCluster();
+for (i=0;i<3;i++) {
+  var svg = document.getElementsByTagName('svg')[0]; //Get svg element
+  var availZone = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  availZone.setAttribute("x", xOffset+"px");
+  availZone.setAttribute("width", "320px");
+  availZone.setAttribute("height", "500px");
+  availZone.setAttribute("rx", "20px");
+  availZone.setAttribute("ry", "20px");
+  availZone.setAttribute("style","fill:red;stroke:black;stroke-width:5;opacity:0.5;");
+  svg.appendChild(availZone);
+  xOffset = xOffset + 320
+}
+});
 function myFunction() {
     document.getElementById("myDropdown").classList.toggle("show");
 }

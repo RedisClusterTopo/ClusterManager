@@ -1,0 +1,16 @@
+{
+  "name": "fontend_example",
+  "version": "1.0.0",
+  "description": "front end example of redismanager",
+  "main": "main.js",
+  "dependencies": {
+    "ioredis": "^2.4.0",
+    "jquery": "^3.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
