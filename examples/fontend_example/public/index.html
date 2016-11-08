@@ -27,7 +27,7 @@
         </ul>
       </div>
       <div>
-        <svg width="960" height="500"></svg>
+        <svg width="1080" height="500"></svg>
       </div>
    </body>
 </html>
@@ -39,28 +39,58 @@ $(document).ready(function () {
   var yOffset = 0;
   //declaring duymmy object that would be passed from the server
     var node1 = new Node("127.0.0.1","east","1","1000","7000");
-    var node2 = new Node("127.0.0.1","east","1","1000","7000");
-    var node3 = new Node("127.0.0.1","east","1","1000","7000");
-    var nodes = [node1,node2,node3];
-    var instance = new Instance(nodes);
-    var aZones = new AvailabilityZone(instance);
-    var cluster = new RedisCluster(aZones);
-  console.log(cluster.AvailabilityZones.Instances.Nodes.length)
-/*cluster.AvailabilityZones.Instances.Nodes.ForEach(function(instance)
+    var node2 = new Node("127.0.0.1","east","1001","2000","7001");
+    var node3 = new Node("127.0.0.1","west","1","1000","7002");
+    var node4 = new Node("127.0.0.1","west","1001","2000","7003");
+    var node5 = new Node("127.0.0.1","south","1","1000","7004");
+    var node6 = new Node("127.0.0.1","south","1001","2000","7005");
+    var nodes1 = [node1,node2];
+    var nodes2 = [node3,node4];
+    var nodes3 = [node5,node6];
+    var instance1 = new Instance(nodes1);
+    var instance2 = new Instance(nodes2);
+    var instance3 = new Instance(nodes3);
+    var aZones1 = new AvailabilityZone(instance1);
+    var aZones2 = new AvailabilityZone(instance2);
+    var aZones3 = new AvailabilityZone(instance3);
+    var zones = [aZones1,aZones2,aZones3,aZones1,aZones2,aZones3];
+    var cluster = new RedisCluster(zones);
+  console.log(Array.isArray(cluster.AvailabilityZones))
+//Check to see if we have more than one availability Zones
+if(Array.isArray(cluster.AvailabilityZones))
 {
-    console.log(instance)
-});*/
-for (i=0;i<3;i++) {
   var svg = document.getElementsByTagName('svg')[0]; //Get svg element
-  var availZone = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  availZone.setAttribute("x", xOffset+"px");
-  availZone.setAttribute("width", "320px");
-  availZone.setAttribute("height", "500px");
-  availZone.setAttribute("rx", "20px");
-  availZone.setAttribute("ry", "20px");
-  availZone.setAttribute("style","fill:red;stroke:black;stroke-width:5;opacity:0.5;");
-  svg.appendChild(availZone);
-  xOffset = xOffset + 320
+  cluster.AvailabilityZones.forEach(function(zones)
+  {
+    var availZone = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    availZone.setAttribute("x", xOffset+"px");
+    availZone.setAttribute("width", "320px");
+    availZone.setAttribute("height", "500px");
+    availZone.setAttribute("rx", "20px");
+    availZone.setAttribute("ry", "20px");
+    availZone.setAttribute("style","fill:red;stroke:black;stroke-width:5;opacity:0.5;");
+    svg.appendChild(availZone);
+    xOffset = xOffset + 320;
+    //Check to see if we have more than one Instance
+    if(Array.isArray(zones.Instances))
+    {
+      zones.Instances.forEach(function(instances){
+        console.log(instances);
+        //check to see if we have more than one node
+        if(Array.isArray(instances.Nodes))
+        {
+
+          instances.Nodes.forEach(function(nodes){
+            console.log(nodes);
+          });
+        }
+      });
+    }
+    else
+    {
+
+    }
+  });
 }
 });
 function myFunction() {
