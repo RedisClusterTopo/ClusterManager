@@ -27,34 +27,62 @@
         </ul>
       </div>
       <div>
-        <svg width="1080" height="500"></svg>
+        <svg>
+          <g>
+          <rect y="0" width="70%" height="33%" style="fill:rgb(0,0,200);stroke-width:3;stroke:rgb(0,0,0)"/>
+          <text x="5" y="2%" font-family="Verdana" font-size="20" fill="black" > Availability Zones </text>
+          </g>
+          <g>
+          <rect y="33%" width="70%" height="33%"style="fill:rgb(0,200,200);stroke-width:3;stroke:rgb(0,0,0)"/>
+          <text x="5" y="35%" font-family="Verdana" font-size="20" fill="black" > Instances </text>
+          </g>
+          <g>
+          <rect y="66%" width="70%"height="33%"style="fill:rgb(0,150,200);stroke-width:3;stroke:rgb(0,0,0)"/>
+          <text x="5" y="68%" font-family="Verdana" font-size="20" fill="black" > Nodes </text>
+          </g>
+        </svg>
       </div>
    </body>
 </html>
 <script type="text/javascript">
-
+function httpGetAsync(theUrl, callback)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() {
+        if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+            callback(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", theUrl, true); // true for asynchronous
+    xmlHttp.send(null);
+}
 $(document).ready(function () {
   //your code here
   var xOffset = 0;
   var yOffset = 0;
   //declaring duymmy object that would be passed from the server
-    var node1 = new Node("127.0.0.1","east","1","1000","7000");
+  /*var node1 = new Node("127.0.0.1","east","1","1000","7000");
     var node2 = new Node("127.0.0.1","east","1001","2000","7001");
     var node3 = new Node("127.0.0.1","west","1","1000","7002");
     var node4 = new Node("127.0.0.1","west","1001","2000","7003");
     var node5 = new Node("127.0.0.1","south","1","1000","7004");
     var node6 = new Node("127.0.0.1","south","1001","2000","7005");
-    var nodes1 = [node1,node2];
-    var nodes2 = [node3,node4];
-    var nodes3 = [node5,node6];
-    var instance1 = new Instance(nodes1);
-    var instance2 = new Instance(nodes2);
-    var instance3 = new Instance(nodes3);
-    var aZones1 = new AvailabilityZone(instance1);
-    var aZones2 = new AvailabilityZone(instance2);
-    var aZones3 = new AvailabilityZone(instance3);
+    var node7 = new Node("127.0.0.1","east","1","1000","7000");
+    var node8 = new Node("127.0.0.1","east","1001","2000","7001");
+    var node9 = new Node("127.0.0.1","west","1","1000","7002");
+    var node10 = new Node("127.0.0.1","west","1001","2000","7003");
+    var node11 = new Node("127.0.0.1","south","1","1000","7004");
+    var node12 = new Node("127.0.0.1","south","1001","2000","7005");
+    var instance1 = [node1,node2];
+    var instance2 = [node3,node4];
+    var instance3 = [node5,node6];
+    var instance4 = [node7,node8];
+    var instance5 = [node9,node10];
+    var instance6 = [node11,node12];
+    var aZones1 = [instance1,instance2];
+    var aZones2 = [instance3,instance4];
+    var aZones3 = [instance5,instance6];
     var zones = [aZones1,aZones2,aZones3,aZones1,aZones2,aZones3];
-    var cluster = new RedisCluster(zones);
+    var cluster = new RedisCluster(zones);*/
   console.log(Array.isArray(cluster.AvailabilityZones))
 //Check to see if we have more than one availability Zones
 if(Array.isArray(cluster.AvailabilityZones))
@@ -64,17 +92,36 @@ if(Array.isArray(cluster.AvailabilityZones))
   {
     var availZone = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     availZone.setAttribute("x", xOffset+"px");
-    availZone.setAttribute("width", "320px");
-    availZone.setAttribute("height", "500px");
+    availZone.setAttribute("y", "40px");
+    availZone.setAttribute("width", "50px");
+    availZone.setAttribute("height", "50px");
     availZone.setAttribute("rx", "20px");
     availZone.setAttribute("ry", "20px");
+    availZone.setAttribute("cursor", "move");
+    availZone.setAttribute("transform", "matrix(1 0 0 1 0 0)");
+    availZone.setAttribute("onmousedown", "selectElement(evt)");
+    SavailZone.setAttribute("containment", "parent");
     availZone.setAttribute("style","fill:red;stroke:black;stroke-width:5;opacity:0.5;");
     svg.appendChild(availZone);
-    xOffset = xOffset + 320;
+    xOffset = xOffset + 100;
+    //transform="matrix(1 0 0 1 0 0)"
+	  //onmousedown="selectElement(evt)"
     //Check to see if we have more than one Instance
-    if(Array.isArray(zones.Instances))
+    console.log(Array.isArray(cluster.AvailabilityZones.Instances));
+    console.log(Array.isArray(zones.Instances));
+    if(Array.isArray(cluster.AvailabilityZones.Instances))
     {
-      zones.Instances.forEach(function(instances){
+      cluster.AvailabilityZones.Instances.forEach(function(instances){
+        xOffset = 0;
+        var instances = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        instances.setAttribute("x", xOffset+"px");
+        instances.setAttribute("y", "300px");
+        instances.setAttribute("width", "50px");
+        instances.setAttribute("height", "50px");
+        instances.setAttribute("rx", "20px");
+        instances.setAttribute("ry", "20px");
+        instances.setAttribute("style","fill:red;stroke:black;stroke-width:5;opacity:0.5;");
+        //xOffset = xOffset + 100;
         console.log(instances);
         //check to see if we have more than one node
         if(Array.isArray(instances.Nodes))
@@ -96,7 +143,41 @@ if(Array.isArray(cluster.AvailabilityZones))
 function myFunction() {
     document.getElementById("myDropdown").classList.toggle("show");
 }
-
+//code to allow the svg elements to be draggable
+	  var selectedElement = 0;
+	  var currentX = 0;
+	  var currentY = 0;
+	  var currentMatrix = 0;
+	  function selectElement(evt) {
+	    selectedElement = evt.target;
+	    currentX = evt.clientX;
+	    currentY = evt.clientY;
+	    currentMatrix = selectedElement.getAttributeNS(null, "transform").slice(7,-1).split(' ');
+      selectedElement.setAttributeNS(null, "onmouseout", "deselectElement(evt)");
+      selectedElement.setAttributeNS(null, "onmouseup", "deselectElement(evt)");
+	      for(var i=0; i<currentMatrix.length; i++) {
+	        currentMatrix[i] = parseFloat(currentMatrix[i]);
+	      }
+	    selectedElement.setAttributeNS(null, "onmousemove", "moveElement(evt)");
+	  }
+    function moveElement(evt){
+	  dx = evt.clientX - currentX;
+	  dy = evt.clientY - currentY;
+	  currentMatrix[4] += dx;
+	  currentMatrix[5] += dy;
+	  newMatrix = "matrix(" + currentMatrix.join(' ') + ")";
+	  selectedElement.setAttributeNS(null, "transform", newMatrix);
+	  currentX = evt.clientX;
+	  currentY = evt.clientY;
+	}
+  function deselectElement(evt){
+	  if(selectedElement != 0){
+	    selectedElement.removeAttributeNS(null, "onmousemove");
+	    selectedElement.removeAttributeNS(null, "onmouseout");
+	    selectedElement.removeAttributeNS(null, "onmouseup");
+	    selectedElement = 0;
+	  }
+	}
 // Close the dropdown if the user clicks outside of it
 window.onclick = function(event) {
   if (!event.target.matches('.dropbtn')) {

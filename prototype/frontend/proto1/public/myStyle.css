@@ -1,4 +1,11 @@
 /*top horizontal navigation bar*/
+svg{
+   width: 100vw;
+   height: 100vh;
+}
+.draggable {
+       cursor: move;
+   }
 ul.topBar {
     list-style-type: none;
     margin: 0;
