@@ -1,6 +1,8 @@
 var app = require('express')();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
+var express = require('express');
+var app = express();
 
 var AWS = require('aws-sdk');
 AWS.config.update({region: 'us-west-2'});
@@ -9,18 +11,18 @@ var ec2 = new AWS.EC2({apiVersion: '2016-09-15'});
 var Cluster = require('ioredis').Cluster;
 var Command = require('ioredis').Command;
 
-var TopoNode = require('./js/TopoNode.js');
-var TopoInstance = require('./js/TopoInstance.js');
-var Subnet = require('./js/Subnet.js');
-var AvailabilityZone = require('./js/AvailabilityZone.js');
-var TopoCluster = require('./js/TopoCluster.js');
+var TopoNode = require("./js/object/TopoNode.js");
+var TopoInstance = require('./js/object/TopoInstance.js');
+var Subnet = require('./js/object/Subnet.js');
+var AvailabilityZone = require('./js/object/AvailabilityZone.js');
+var TopoCluster = require('./js/object/TopoCluster.js');
 
 server.listen(8080);
 
 app.use('/js', express.static('js'));
-
+//app.use(express.static('public'));
 app.get('/', function (req, res) {
-  res.sendFile('../public/index.html');
+  res.sendFile('././public/index.html');
 });
 
 /*
@@ -33,7 +35,7 @@ io.on('connection', function (socket) {
 
   //Emit an event 'init' to the new socket connection.
   //TODO: This should request the cluster information
-  socket.emit('init', /*--{DATA: OBJECT}--*/);
+  //socket.emit('init', /*--{DATA: OBJECT}--*/);
 
 
   //Event emitted by the newly connected client
