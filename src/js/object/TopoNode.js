@@ -1,21 +1,65 @@
 "use strict";
 
-module.exports = class TopoNode {
+class TopoNode {
 
   constructor(){
-    this.priv_host = null;
-    this.pub_host = null;
+    this.host = null;
     this.port = null;
     this.type = null;
     this.replicates = null;
+    this.hash = []; //Array of objects with start and end hash slots to handle
+                    //Nodes which serve a non-contiguous hash range
+    this.slaves = [];
   }
 
-  getPublicHost(){
-    return this.pub_host;
+  getHash(){
+    return this.hash;
   }
 
-  getPrivateHost(){
-    return this.priv_host;
+  setHash(h){
+    this.hash = h;
+  }
+
+  getType(){
+    return this.type;
+  }
+
+  setType(t){
+    this.type = t;
+  }
+
+  addSlave(s){
+    if(this.type == 'master'){
+      if(s){
+        this.slaves.forEach(function(slave){
+          if(slave != s){
+            this.slaves.push(s);
+          }
+        });
+      }
+      else {
+        return;
+      }
+    }
+  }
+
+  delSlave(s){
+    if(this.type == 'master'){
+      if(s){
+        this.slaves.forEach(function(slave, i){
+          this.slaves.splice(i, 1);
+        });
+      }
+      else{
+        return;
+      }
+    }
+  }
+
+  getSlaves(){
+    if(this.type == 'master'){
+      return this.slaves;
+    }
   }
 
   getPort(){
@@ -23,7 +67,9 @@ module.exports = class TopoNode {
   }
 
   getReplicates(){
-    return this.replicates;
+    if(this.type == 'slave'){
+      return this.replicates;
+    }
   }
 
   setHost(h){
@@ -35,6 +81,8 @@ module.exports = class TopoNode {
   }
 
   setReplicates(r){
-    this.replicates = r;
+    if(this.type == 'slave'){
+      this.replicates = r;
+    }
   }
 }

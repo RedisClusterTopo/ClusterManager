@@ -1,6 +1,6 @@
 "use strict";
 
-module.exports = class TopoInstance {
+class TopoInstance {
 
   constructor(){
     this.id = null;

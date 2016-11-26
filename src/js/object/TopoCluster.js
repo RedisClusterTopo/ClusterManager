@@ -1,6 +1,6 @@
 "use strict";
 
-module.exports = class TopoCluster {
+class TopoCluster {
   constructor(){
     this.zones = [];
   }
@@ -29,38 +29,36 @@ module.exports = class TopoCluster {
   }
 
   addSubnet(s, az){
-
+    console.log(this.getAvailabilityZones(az));
   }
 
   delSubnet(s, az){
-
+    this.getAvailabilityZones(az).delSubnet(s);
   }
 
   addInstance(i, s, az){
-
+    this.getAvailabilityZones(az).getSubnets(s).addInstance(i);
   }
 
   delInstance(i, s, az){
-
+    this.getAvailabilityZones(az).getSubnets(s).delInstance(i);
   }
 
   addNode(n, i, s, az){
-
+    this.getAvailabilityZones(az).getSubnets(s).getInstance(i).addNode(n);
   }
 
   delNode(n, i, s, az){
-
+    this.getAvailabilityZones(az).getSubnets(s).getInstance(i).delNode(n);
   }
 
   getAvailabilityZones(i){
     if(i){
-      var val;
       this.zones.forEach(function(z, index){
         if(z.name == i.name){
-          val = z;
+          return this.zones.at(index);
         }
       });
-      return val;
     }
     else {
       return this.zones;
@@ -71,18 +69,16 @@ module.exports = class TopoCluster {
     if (i){
       var val;
       this.zones.forEach(function(az){
-        az.subnets.forEach(function(sn){
+        az.getSubnets.forEach(function(sn, index){
           if(sn.netid == i.netid)
-            val = sn;
+            return az.subnets.at(index);
         });
       });
-      return val;
     }
     else {
       var subnets = [];
       this.zones.forEach(function(az){
-        az.subnets.forEach(function(net){
-          //console.log(net);
+        az.getSubnets().forEach(function(net){
           subnets.push(net);
         });
       });
@@ -92,45 +88,39 @@ module.exports = class TopoCluster {
 
   getInstances(i){
     if(i){
-      var val;
       var nets = this.getSubnets();
       nets.forEach(function(net){
-        net.instances.forEach(function(inst){
+        net.getInstance().forEach(function(inst, index){
           if(inst.id == i.id)
-            val = inst;
-        })
+            return net.instances.at(index);
+        });
       });
-      return val;
     }
     else {
-      val = []
+      var instances = []
       var nets = this.getSubnets();
       nets.forEach(function(net){
         net.instances.forEach(function(inst){
           val.push(inst);
         })
       });
-      return val;
+      return instances;
     }
   }
 
-  getNodes(){
-    var nodes = [];
-    var instances = this.getInstances();
-    instances.forEach(function(inst){
-      inst.getNodes().forEach(function(n){
-        nodes.push(n);
-      });
-    });
-    return nodes;
-  }
-
   getNodes(i){
-    var val;
+    if(i){
+
+    }
+    else{
+      var inst = this.getInstances();
+      inst.forEach(function(instance){
+
+      });
+    }
     this.getNodes().forEach(function(n, index){
       if(i.host == n.host && i.port == n.port)
         val = n;
     });
-    return val;
   }
 };

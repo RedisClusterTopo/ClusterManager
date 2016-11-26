@@ -47,3 +47,8 @@ window.onclick = function(event) {
     }
   }
 }
+
+//MAIN GRAPHICS FUNCTION CALL
+function generate_topo(){
+
+}

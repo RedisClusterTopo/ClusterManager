@@ -1,6 +1,6 @@
 "use strict";
 
-module.exports = class Subnet{
+class Subnet{
   constructor(){
     this.netid = null
     this.instances = [];
@@ -42,7 +42,17 @@ module.exports = class Subnet{
     return this.netid;
   }
 
-  getInstances() {
-    return this.instances;
+  getInstances(i) {
+    if(i){
+      this.instances.forEach(function(inst, index){
+        if(i.id == inst.id){
+          return this.instances.at(index);
+        }
+      });
+    }
+    else {
+      return this.instances;
+    }
+
   }
 }

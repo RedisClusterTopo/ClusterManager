@@ -1,24 +1,16 @@
-//recieve the info from the server and then parse the neccessary objects from the raw output
-//we are assuming the information coming through is always in the same order
-function CreateClusterObject(InformationArray){
-GetAvailabilityZone(InformationArray[0])
-}
-//retrieve the availability zone from the information
-//name
-function GetAvailabilityZone(){
 
-}
-//retrieve the instances from the information
-//id
-function GetInstances(){
+function parse(topo_data, done){
+  //Object to parse data into
+  var t = new TopoCluster();
 
-}
-//retrieve subnet information from the information
-//subnet
-function GetSubnets(){
+  topo_data.ec2info.forEach(function(inst, i){
 
-}
-//get the master and the slave nodes from the information
-function GetNodes(){
+    //TODO: Rework data structure to have all method calls coming from the
+        //TopoCluster object
+    //Build a parsed object to be forwarded to graphics generation
+
+  });
+
+  done(t);
 
 }

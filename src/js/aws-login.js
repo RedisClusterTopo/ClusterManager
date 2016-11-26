@@ -1,11 +1,9 @@
 //Define socket connection to server
 var socket = io('http://localhost:8080');
 
-socket.on('tag-response', function (data) {
-  //data contains raw ec2 instance data with tag matching the given key/val
-  console.log(data);
+socket.on('tag-response', function () {
+  location.href = location.href + 'index';  //Transfer client to index.html
 });
-
 
 
 $(document).ready(function(){
@@ -23,5 +21,12 @@ $(document).ready(function(){
 
     //Send key/val to server for aws query
     socket.emit('init-tag', tagData);
+
+    //Store the AWS key/value pair in the browser cache
+    localStorage.id = JSON.stringify({
+      key : tagData.key,
+      val: tagData.val
+    });
+
   });
 });

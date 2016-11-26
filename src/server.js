@@ -18,6 +18,9 @@ var Subnet = require('./js/object/Subnet.js');
 var AvailabilityZone = require('./js/object/AvailabilityZone.js');
 var TopoCluster = require('./js/object/TopoCluster.js');
 
+//Store objects containing ec2 info, ioredis info and the corresponding socket
+var clientStore = [];
+
 server.listen(8080);
 
 app.use('/js', express.static('js'));
@@ -37,36 +40,126 @@ app.get('/index', function (req, res) {
 io.on('connection', function (socket) {
 
   //data contains tag key/val
-  socket.on('init-tag', function(data){
-    //Query EC2 for instance information
-    getInstancesByTag(data, function(ec2info){
+  socket.on('init-tag', function(tag){
 
-      var clusterNodes = [];  //contains host/port for connecting ioredis
-      ec2info.forEach(function(inst){
-        inst.Tags.forEach(function(t){
-          var node = {};
-          if(t.Key == "master" || t.Key == "slave"){
-            node.ip = inst.PrivateIpAddress;
-            node.port = t.Value;
-            clusterNodes.push(node);
-          }
-        });
+    //Check clientStore to prevent duplicates
+    clientStore.forEach(function(c){
+      if(c.id.key == tag.key && c.id.val == tag.val){
+        return;
+      }
+    });
+
+    //client_data contains ec2 instance array and ioredis object
+    initClient(tag, function(client_data){
+      socket.emit('tag-response', null); //Tell client to advance to index
+
+      var newClient = {};
+      newClient.id = {
+        key : tag.key,
+        val : tag.val
+      };
+      newClient.info = client_data;
+      newClient.nodes = client_data.nodes;
+
+      clientStore.push(newClient);
+    });
+
+  });
+
+  //Forward topology data without making call to ec2
+  //App is initialized without info of cluster nodes
+  socket.on('init app', function(clientID){
+      var found = false;
+      //Iterate through stored clients until a tag key/val is matched
+      clientStore.forEach(function(cl){
+        if(clientID.key == cl.id.key && clientID.val == cl.id.val){
+          var d = {
+            ec2info: cl.info.ec2info,
+            nodes: cl.info.nodes
+          };
+          socket.emit('topo init', d);
+          found = true;
+        }
       });
 
-      debug(clusterNodes);
-
-      //Need to store ec2info globally in order to forward it to the
-      //client @ index.html (only able to forward it to aws-login.html w/ current scope)
-      socket.emit('tag-response', ec2info); //Send ec2info to client
-    });
+      if(found == false){
+        socket.emit('err', "Client ID not found");
+      }
   });
+
+  //Make calls to ec2, update cluster node states then forward data to client
+  socket.on('update topo', function(clientID){
+
+    clientStore.forEach(function(cl){
+      if(clientID.key == cl.id.key && clientID.val == cl.id.val){
+        updateClient(clientID, function(topo_data){
+          socket.emit('topo update', topo_data);
+        });
+      }
+    });
+
+  });
+
 });
+
+
+function initClient(tag, callback){
+  var clientData = {};
+
+  getInstancesByTag(tag, function(ec2info){
+    clientData.ec2info = ec2info; //Array of ec2 instance infos
+
+    var clusterNodes = [];  //contains host/port for connecting ioredis
+    //Check for instances tagged as master/slave cluster nodes
+    ec2info.forEach(function(inst){
+      inst.Tags.forEach(function(t){
+        if(t.Key == "master" || t.Key == "slave"){
+          var node = {};
+          node.ip = inst.PrivateIpAddress;
+          node.port = t.Value;
+          clusterNodes.push(node);
+        }
+      });
+    });
+
+    clientData.nodes = clusterNodes;
+
+    //TODO: Build an ioredis object interfacing with clientData.nodes
+    //var cluster = new Cluster(clusterNodes);
+    //clientData.ioredis = cluster;
+
+    callback(clientData);
+  });
+}
+
+function updateClient(cid, callback){
+  var clientData = {};
+  getInstancesByTag(cid, function(ec2info){
+    clientData.ec2info = ec2info; //Array of ec2 instance infos
+
+    //The client should have an existing ioredis object
+
+    //TODO: Append the following values to clientData (structure tbd)
+        //Issue  'slaves' commands to each master node and compare results
+              //Build associations, both
+              //master -> slave
+              //slave -> master
+        //Mapping of hash slots served by each node
+
+    clientStore.forEach(function(client, i){
+      if(cid.key == client.id.key && cid.val == client.id.val){
+        clientData.nodes = client.nodes;
+      }
+    })
+
+    callback(clientData);
+  });
+}
 
 //Query EC2 for a list of instance IDs which have a tag matching
 //the key and value provided by data
 //Chains to getInfoByInstID() which returns instance info for each ID supplied
-function getInstancesByTag(data, callback){
-  debug("enter getInstanceByTag()");
+function getInstancesByTag(tag, callback){
   var instance_ids = [];
 
   var params = {
@@ -74,13 +167,13 @@ function getInstancesByTag(data, callback){
       {
         Name: "key",
         Values: [
-          data.key
+          tag.key
         ]
       },
       {
         Name: "value",
         Values:[
-          data.val
+          tag.val
         ]
       }
     ]
@@ -124,6 +217,8 @@ function getInfoByInstID(instance_ids, callback){
     }
   });
 }
+
+
 
 var debugMode = true;
 function debug(s) {

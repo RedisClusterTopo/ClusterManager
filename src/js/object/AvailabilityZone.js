@@ -1,6 +1,6 @@
 "use strict";
 
-module.exports = class AvailabilityZone {
+class AvailabilityZone {
   constructor(){
     this.name = null;
     this.subnets = [];
@@ -36,11 +36,17 @@ module.exports = class AvailabilityZone {
   }
 
   getSubnets(s){
-    var val;
-    this.subnets.forEach(function(sn, index){
-      if(s.netid == sn.netid)
-        return this.subnets.at(index);
-    });
+    if(s){
+      var val;
+      this.subnets.forEach(function(sn, index){
+        if(s.netid == sn.netid)
+          return this.subnets.at(index);
+      });
+    }
+    else {
+      return this.subnets;
+    }
+
   }
 
   getSubnets(){
