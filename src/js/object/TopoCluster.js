@@ -29,56 +29,93 @@ class TopoCluster {
   }
 
   addSubnet(s, az){
-    console.log(this.getAvailabilityZones(az));
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.addSubnet(s);
+      }
+    });
   }
 
   delSubnet(s, az){
-    this.getAvailabilityZones(az).delSubnet(s);
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.delSubnet(s);
+      }
+    });
   }
 
   addInstance(i, s, az){
-    this.getAvailabilityZones(az).getSubnets(s).addInstance(i);
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.subnets.forEach(function(net){
+          if(net.getNetId() == s.getNetId()){
+            net.addInstance(i);
+          }
+        });
+      }
+    });
   }
 
   delInstance(i, s, az){
-    this.getAvailabilityZones(az).getSubnets(s).delInstance(i);
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.subnets.forEach(function(net){
+          if(net.getNetId() == s.getNetId()){
+            net.delInstance(i);
+          }
+        });
+      }
+    });
   }
 
   addNode(n, i, s, az){
-    this.getAvailabilityZones(az).getSubnets(s).getInstance(i).addNode(n);
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.subnets.forEach(function(net){
+          if(net.getNetId() == s.getNetId()){
+            net.instances.forEach(function(inst){
+              if(inst.getId() == i.getId()){
+                inst.addNode(n);
+              }
+            });
+          }
+        });
+      }
+    });
   }
 
   delNode(n, i, s, az){
-    this.getAvailabilityZones(az).getSubnets(s).getInstance(i).delNode(n);
+    this.zones.forEach(function(zone){
+      if(zone.getName() == az.getName()){
+        zone.subnets.forEach(function(net){
+          if(net.getNetId() == s.getNetId()){
+            net.instances.forEach(function(inst){
+              if(inst.getId() == i.getId()){
+                inst.delNode(n);
+              }
+            });
+          }
+        });
+      }
+    });
   }
 
-  getAvailabilityZones(i){
-    if(i){
-      this.zones.forEach(function(z, index){
-        if(z.name == i.name){
-          return this.zones.at(index);
+  getAvailabilityZones(){
+    return this.zones;
+  }
+
+  getSubnets(az){
+    if (az){
+      this.zones.forEach(function(zone){
+        if(zone.getName() == az.getName()){
+          return zone.getSubnets();
         }
       });
     }
     else {
-      return this.zones;
-    }
-  }
-
-  getSubnets(i){
-    if (i){
-      var val;
-      this.zones.forEach(function(az){
-        az.getSubnets.forEach(function(sn, index){
-          if(sn.netid == i.netid)
-            return az.subnets.at(index);
-        });
-      });
-    }
-    else {
       var subnets = [];
-      this.zones.forEach(function(az){
-        az.getSubnets().forEach(function(net){
+      this.zones.forEach(function(zone){
+        zone.getSubnets().forEach(function(net){
           subnets.push(net);
         });
       });
@@ -86,21 +123,38 @@ class TopoCluster {
     }
   }
 
-  getInstances(i){
-    if(i){
-      var nets = this.getSubnets();
-      nets.forEach(function(net){
-        net.getInstance().forEach(function(inst, index){
-          if(inst.id == i.id)
-            return net.instances.at(index);
-        });
+  getInstances(s, az){
+
+    //Only az is given
+    if(arguments.length == 1){
+      var instances = [];
+      this.zones.forEach(function(zone){
+        if(zone.getName() == az.getName()){
+          zone.getSubnets().forEach(function(net){
+            net.getInstances().forEach(function(inst){
+              instances.push(inst);
+            });
+          });
+        }
+      });
+      return instances;
+    }
+    else if (arguments.length == 2){
+      this.zones.forEach(function(zone){
+        if(zone.getName() == az.getName()){
+          zone.getSubnets().forEach(function(net){
+            if(net.getId() == s.getId()){
+              return net.getInstances();
+            }
+          });
+        }
       });
     }
-    else {
-      var instances = []
+    else{
+      var instances = [];
       var nets = this.getSubnets();
       nets.forEach(function(net){
-        net.instances.forEach(function(inst){
+        net.getInstances().forEach(function(inst){
           val.push(inst);
         })
       });
@@ -108,19 +162,28 @@ class TopoCluster {
     }
   }
 
-  getNodes(i){
-    if(i){
+  getNodes(i, sn, az){
+    if(arguments.length == 3){
+      this.getInstances().forEach(function(inst){
+        if(inst.getId() == i.getId()){
+          return inst.get
+        }
+      });
+    }
+    else if (arguments.length == 2){
+
+    }
+    else if (arguments.length == 1){
 
     }
     else{
+      var nodes = [];
       var inst = this.getInstances();
       inst.forEach(function(instance){
-
+        instance.getNodes().forEach(function(n){
+          nodes.push(n);
+        });
       });
     }
-    this.getNodes().forEach(function(n, index){
-      if(i.host == n.host && i.port == n.port)
-        val = n;
-    });
   }
 };

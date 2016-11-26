@@ -35,21 +35,9 @@ class AvailabilityZone {
     return this.name;
   }
 
-  getSubnets(s){
-    if(s){
-      var val;
-      this.subnets.forEach(function(sn, index){
-        if(s.netid == sn.netid)
-          return this.subnets.at(index);
-      });
-    }
-    else {
-      return this.subnets;
-    }
-
-  }
-
   getSubnets(){
     return this.subnets;
   }
+
+
 }
