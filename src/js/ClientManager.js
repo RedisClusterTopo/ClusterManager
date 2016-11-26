@@ -5,7 +5,7 @@ $(document).ready(function () {
   var socket = io('http://localhost:8080');
 
   //Pass the key/value pair submitted to identify the client
-  clientID = JSON.parse(sessionStorage.id);
+  clientID = JSON.parse(localStorage.id);
   socket.emit('init app', clientID);
 
 
