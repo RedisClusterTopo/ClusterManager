@@ -4,6 +4,7 @@ function parse(topo_data, done){
   var t = new TopoCluster();
 
   topo_data.ec2info.forEach(function(inst, i){
+    console.log(inst);
 
     var az = new AvailabilityZone();
     az.setName(inst.Placement.AvailabilityZone);
@@ -19,6 +20,15 @@ function parse(topo_data, done){
     t.addInstance(i, sn, az);
 
     //TODO: Build and add node objects
+    inst.Tags.forEach(function(ta){
+      if(ta.Key == "master" || ta.Key == "slave"){
+        var n = new TopoNode();
+        n.setType(ta.Key);
+        n.setHost(i.getIp());
+        n.setPort(ta.Value);
+        t.addNode(n, i, sn, az);
+      }
+    });
   });
 
   done(t);

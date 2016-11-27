@@ -72,6 +72,10 @@ class TopoNode {
     }
   }
 
+  getHost(){
+    return this.host;
+  }
+
   setHost(h){
     this.host = h;
   }

@@ -14,7 +14,7 @@ class TopoInstance {
         return;
       }
     });
-    this.nodes.add(n);
+    this.nodes.push(n);
   }
 
   delNode(n){
