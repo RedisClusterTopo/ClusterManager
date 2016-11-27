@@ -106,6 +106,11 @@ io.on('connection', function (socket) {
 function initClient(tag, callback){
   var clientData = {};
 
+  clientStore.forEach(function(c){
+    if(tag.key == c.id.key && tag.val == c.id.val)
+      return;
+  });
+
   getInstancesByTag(tag, function(ec2info){
     clientData.ec2info = ec2info; //Array of ec2 instance infos
 
@@ -127,6 +132,25 @@ function initClient(tag, callback){
     //TODO: Build an ioredis object interfacing with clientData.nodes
     //var cluster = new Cluster(clusterNodes);
     //clientData.ioredis = cluster;
+
+
+    // ***Must mimic ports described in tags***
+    var local_cluster = false;   //Toggle on to use a local cluster
+    var c_nodes = [];
+    clientData.nodes.forEach(function(n){
+      var node = {};
+      node.host = n.ip;
+      if(local_cluster)   node.host = '127.0.0.1';
+      node.port = n.port;
+      c_nodes.push(node);
+    });
+
+    var client_cluster = new Cluster(c_nodes);
+
+
+    client_cluster.on('ready', function(){
+
+    });
 
     callback(clientData);
   });
