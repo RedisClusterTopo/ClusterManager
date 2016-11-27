@@ -134,8 +134,8 @@ function initClient(tag, callback){
     //clientData.ioredis = cluster;
 
 
-    // ***Must mimic ports described in tags***
-    var local_cluster = false;   //Toggle on to use a local cluster
+    // ***Must mimic ports described in AWS tags***
+    var local_cluster = true;   //Toggle on to use a local cluster
     var c_nodes = [];
     clientData.nodes.forEach(function(n){
       var node = {};
@@ -149,7 +149,12 @@ function initClient(tag, callback){
 
 
     client_cluster.on('ready', function(){
+      var nodesCmd = new Command('cluster', ['nodes'], 'utf8', function(err, res){
+        if(err)   console.log(err);
+        if(res)   console.log(res.toString('utf8'));
+      });
 
+      client_cluster.sendCommand(nodesCmd);
     });
 
     callback(clientData);
