@@ -1,5 +1,6 @@
 node_modules
 redis-3.2.4
+redis
 .log
 .aof
 nodes.conf
