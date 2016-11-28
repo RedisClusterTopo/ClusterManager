@@ -129,33 +129,33 @@ function initClient(tag, callback){
 
     clientData.nodes = clusterNodes;
 
-    // //TODO: Build an ioredis object interfacing with clientData.nodes
-    // //var cluster = new Cluster(clusterNodes);
-    // //clientData.ioredis = cluster;
-    //
-    //
-    // // ***Must mimic ports described in AWS tags***
-    // var local_cluster = true;   //Toggle on to use a local cluster
-    // var c_nodes = [];
-    // clientData.nodes.forEach(function(n){
-    //   var node = {};
-    //   node.host = n.ip;
-    //   if(local_cluster)   node.host = '127.0.0.1';
-    //   node.port = n.port;
-    //   c_nodes.push(node);
-    // });
-    //
-    // var client_cluster = new Cluster(c_nodes);
-    //
-    //
-    // client_cluster.on('ready', function(){
-    //   var nodesCmd = new Command('cluster', ['nodes'], 'utf8', function(err, res){
-    //     if(err)   console.log(err);
-    //     if(res)   console.log(res.toString('utf8'));
-    //   });
-    //
-    //   client_cluster.sendCommand(nodesCmd);
-    // });
+    //TODO: Build an ioredis object interfacing with clientData.nodes
+    //var cluster = new Cluster(clusterNodes);
+    //clientData.ioredis = cluster;
+
+
+    // ***Must mimic ports described in AWS tags***
+    var local_cluster = true;   //Toggle on to use a local cluster
+    var c_nodes = [];
+    clientData.nodes.forEach(function(n){
+      var node = {};
+      node.host = n.ip;
+      if(local_cluster)   node.host = '127.0.0.1';
+      node.port = n.port;
+      c_nodes.push(node);
+    });
+
+    var client_cluster = new Cluster(c_nodes);
+
+
+    client_cluster.on('ready', function(){
+      var nodesCmd = new Command('cluster', ['nodes'], 'utf8', function(err, res){
+        if(err)   console.log(err);
+        if(res)   console.log(res.toString('utf8'));
+      });
+
+      client_cluster.sendCommand(nodesCmd);
+    });
 
     callback(clientData);
   });
