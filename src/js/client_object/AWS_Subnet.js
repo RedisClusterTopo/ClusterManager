@@ -1,6 +1,6 @@
 "use strict";
 
-class Subnet{
+class AWS_Subnet{
   constructor(){
     this.netid = null
     this.instances = [];

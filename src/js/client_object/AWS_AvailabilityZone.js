@@ -1,6 +1,6 @@
 "use strict";
 
-class AvailabilityZone {
+class AWS_AvailabilityZone {
   constructor(){
     this.name = null;
     this.subnets = [];

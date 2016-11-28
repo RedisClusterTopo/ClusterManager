@@ -1,6 +1,6 @@
 "use strict";
 
-class TopoInstance {
+class EC2Instance {
 
   constructor(){
     this.id = null;

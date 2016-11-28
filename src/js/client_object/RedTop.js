@@ -1,6 +1,6 @@
 "use strict";
 
-class TopoCluster {
+class RedTop {
   constructor(){
     this.zones = [];
   }

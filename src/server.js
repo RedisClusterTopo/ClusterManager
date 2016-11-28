@@ -12,11 +12,6 @@ var ec2 = new AWS.EC2({apiVersion: '2016-09-15'});
 var Cluster = require('ioredis').Cluster;
 var Command = require('ioredis').Command;
 
-var TopoNode = require("./js/object/TopoNode.js");
-var TopoInstance = require('./js/object/TopoInstance.js');
-var Subnet = require('./js/object/Subnet.js');
-var AvailabilityZone = require('./js/object/AvailabilityZone.js');
-var TopoCluster = require('./js/object/TopoCluster.js');
 
 //Store objects containing ec2 info, ioredis info and the corresponding socket
 var clientStore = [];
