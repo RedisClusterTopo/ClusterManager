@@ -20,6 +20,9 @@ In order to use the app, you will need to add certain tags to your EC2 instances
 PlLEASE NOTE: ioredis will not require all of your nodes to be tagged in order to connect to your cluster. If you have a sizeable deployment, it will suffice to tag a small number of nodes - ioredis will autodiscover the remaining nodes so long as a sufficient amount are reachable.
 
 
+Current progress on [graphical display](http://imgur.com/eGb5WRw)
+
+
 # Group Members: 
 
 Alex Kiefer 
