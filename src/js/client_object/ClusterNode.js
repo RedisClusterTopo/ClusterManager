@@ -1,6 +1,6 @@
 "use strict";
 
-class TopoNode {
+class ClusterNode {
 
   constructor(){
     this.host = null;
