@@ -22,8 +22,35 @@ $(document).ready(function(){
 });
 
 
+//===========================Graphics statics================================//
+
+// set the dimensions and margins of the diagram
+var margin = {top: 40, right: 90, bottom: 50, left: 90},
+	width = 660 - margin.left - margin.right,
+	height = 500 - margin.top - margin.bottom;
+
+// declares a tree layout and assigns the size
+var treemap = d3.tree()
+	.size([width, height]);
+
+var x = d3.scaleLinear()
+  .domain([-1, width + 1])
+  .range([-1, width + 1]);
+
+var y = d3.scaleLinear()
+    .domain([-1, height + 1])
+    .range([-1, height + 1]);
+
+var svg;
+var g;
+
+
+
 // MAIN GRAPHICS FUNCTION CALL
 function generate_topo(data){
+	svg = null;
+	g = null;
+
 	//Clear the html body
 	$('body').empty();
 
@@ -57,15 +84,6 @@ function generate_topo(data){
 		});
 	});
 
-		// set the dimensions and margins of the diagram
-	var margin = {top: 40, right: 90, bottom: 50, left: 90},
-	    width = 660 - margin.left - margin.right,
-	    height = 500 - margin.top - margin.bottom;
-
-	// declares a tree layout and assigns the size
-	var treemap = d3.tree()
-	    .size([width, height]);
-
 	//  assigns the data to a hierarchy using parent-child relationships
 	var nodes = d3.hierarchy(data);
 
@@ -75,13 +93,11 @@ function generate_topo(data){
 	// append the svg obgect to the body of the page
 	// appends a 'group' element to 'svg'
 	// moves the 'group' element to the top left margin
-	var svg = d3.select("body").append("svg")
+	svg = d3.select("body").append("svg")
 	      .attr("width", width + margin.left + margin.right)
-	      .attr("height", height + margin.top + margin.bottom),
-	    g = svg.append("g")
-	      .attr("transform",
-	            "translate(" + margin.left + "," + margin.top + ")");
-
+	      .attr("height", height + margin.top + margin.bottom);
+  g = svg.append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 	// adds the links between the nodes
 	var link = g.selectAll(".link")
 	    .data( nodes.descendants().slice(1))
@@ -114,40 +130,19 @@ function generate_topo(data){
 	  .attr("y", function(d) { return d.children ? -20 : 20; })
 	  .style("text-anchor", "middle")
 	  .text(function(d) { return d.data.name; });
-}
 
+	// Uncomment the following to enable basic zoom/pan logic
 
+/*
+	var zoom = d3.zoom()
+			.scaleExtent([1, 40])
+			.translateExtent([[-100, -100], [width + 90, height + 100]])
+			.on("zoom", function(){
+				g.attr("transform", d3.event.transform);
+				g.call(d3.event.transform.rescaleX(x));
+				g.call(d3.event.transform.rescaleY(y));
+			});
 
-
-function selectElement(evt) {
-  selectedElement = evt.target;
-  currentX = evt.clientX;
-  currentY = evt.clientY;
-  currentMatrix = selectedElement.getAttributeNS(null, "transform").slice(7,-1).split(' ');
-  selectedElement.setAttributeNS(null, "onmouseout", "deselectElement(evt)");
-  selectedElement.setAttributeNS(null, "onmouseup", "deselectElement(evt)");
-    for(var i=0; i<currentMatrix.length; i++) {
-      currentMatrix[i] = parseFloat(currentMatrix[i]);
-    }
-  selectedElement.setAttributeNS(null, "onmousemove", "moveElement(evt)");
-}
-
-function moveElement(evt){
-	dx = evt.clientX - currentX;
-	dy = evt.clientY - currentY;
-	currentMatrix[4] += dx;
-	currentMatrix[5] += dy;
-	newMatrix = "matrix(" + currentMatrix.join(' ') + ")";
-	selectedElement.setAttributeNS(null, "transform", newMatrix);
-	currentX = evt.clientX;
-	currentY = evt.clientY;
-}
-
-function deselectElement(evt){
-	if(selectedElement != 0){
-	  selectedElement.removeAttributeNS(null, "onmousemove");
-	  selectedElement.removeAttributeNS(null, "onmouseout");
-	  selectedElement.removeAttributeNS(null, "onmouseup");
-	  selectedElement = 0;
-	}
+	svg.call(zoom);
+*/
 }
