@@ -1,0 +1,9 @@
+rect.nodeRect
+{
+  y: 75%;
+  width: 70%;
+  height: 25%;
+  fill: rgb(0,0,200);
+  stroke-width:3;
+  stroke:rgb(0,0,0);
+}

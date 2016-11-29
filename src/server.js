@@ -130,7 +130,7 @@ function initClient(tag, callback){
 
 
     // ***Must mimic ports described in AWS tags***
-    var local_cluster = true;   //Toggle on to use a local cluster
+    var local_cluster = false;   //Toggle on to use a local cluster
     var c_nodes = [];
     clientData.nodes.forEach(function(n){
       var node = {};

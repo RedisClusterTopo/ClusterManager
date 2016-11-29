@@ -52,7 +52,7 @@ function generate_topo(data){
 	g = null;
 
 	//Clear the html body
-	$('body').empty();
+	$('p').empty();
 
 	// transform data into acceptable object format for d3
 	data.name = "Cluster root";
@@ -93,7 +93,7 @@ function generate_topo(data){
 	// append the svg obgect to the body of the page
 	// appends a 'group' element to 'svg'
 	// moves the 'group' element to the top left margin
-	svg = d3.select("body").append("svg")
+	svg = d3.select("p").append("svg")
 	      .attr("width", width + margin.left + margin.right)
 	      .attr("height", height + margin.top + margin.bottom);
   g = svg.append("g")
