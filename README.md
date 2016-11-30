@@ -15,7 +15,7 @@ In order to use the app, you will need to add certain tags to your EC2 instances
 1) A tag common to all your instances to identify the machines running Redis Cluster
 
 2) Tags identifying the node type and port over which they run. i.e. Key = 'master'      Value = '7000'
-  Instances may have multiple master or slave tags.
+  Currently ec2 instances can have only one tag of a given name. We will be designing a format to address this if ioredis cannot reliably connect via relatively few nodes identified in the instance's tag.
   
 PlLEASE NOTE: ioredis will not require all of your nodes to be tagged in order to connect to your cluster. If you have a sizeable deployment, it will suffice to tag a small number of nodes - ioredis will autodiscover the remaining nodes so long as a sufficient amount are reachable.
 
