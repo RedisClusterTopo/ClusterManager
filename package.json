@@ -1,0 +1,11 @@
+{
+  "name": "redtop",
+  "version": "0.1.0",
+  "description": "Describes the network topology and state of Redis Cluster deployments hosted on the cloud",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alex Kiefer, Cory Stonitsch, Chris Bendt ",
+  "license": "MIT"
+}
