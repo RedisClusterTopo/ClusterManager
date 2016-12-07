@@ -1,14 +1,18 @@
 
 function parse(topo_data, done){
+  // console.log(topo_data); //array of raw ec2 instance infos
+
   //Object to parse data into
   var t = new RedTop();
 
-  topo_data.ec2info.forEach(function(inst, i){
-    console.log(inst);
+
+  topo_data.forEach(function(inst, i){
 
     var az = new AWS_AvailabilityZone();
     az.setName(inst.Placement.AvailabilityZone);
     t.addAvailabilityZone(az);
+
+
 
     var sn = new AWS_Subnet();
     sn.setNetId(inst.SubnetId);

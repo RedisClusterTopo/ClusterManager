@@ -8,11 +8,13 @@ class RedTop {
 
   //Checks for unique AvailabilityZone name
   addAvailabilityZone(az) {
+    var f = false;
     this.zones.forEach(function(zone){
-      if (zone.getName() == az.getName())
-        return;
+      if (zone.getName() == az.getName()){
+        f = true;
+      }
     });
-    this.zones.push(az);
+    if (!f) this.zones.push(az);
   }
 
   //Supports a string arg to remove by name or remove by index
@@ -29,11 +31,18 @@ class RedTop {
   }
 
   addSubnet(s, az){
+    var f = false;
     this.zones.forEach(function(zone){
-      if(zone.getName() == az.getName()){
-        zone.addSubnet(s);
+
+      if(az.getName() == zone.getName()){
+        zone.subnets.forEach(function(sn){
+          if(sn.getNetId() == s.getNetId()) f = true;
+        });
+
+        if(!f) zone.addSubnet(s);
       }
     });
+
   }
 
   delSubnet(s, az){

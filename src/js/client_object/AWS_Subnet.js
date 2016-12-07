@@ -6,12 +6,6 @@ class AWS_Subnet{
     this.instances = [];
   }
 
-/*
-  constructor(netid, instances){
-    this.netid = netid;
-    this.instances = instances;
-  }
-*/
   addInstance(i){
     this.instances.forEach(function(inst){
       if(i.getId() == inst.getId()){

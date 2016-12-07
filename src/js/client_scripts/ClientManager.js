@@ -8,7 +8,6 @@ $(document).ready(function () {
   clientID = JSON.parse(localStorage.id);
   socket.emit('init app', clientID);
 
-
   //Server response to app initalization
   socket.on('topo init', function(in_topo){
 
@@ -38,8 +37,6 @@ $(document).ready(function () {
     });
 
   });
-
-
 
   //Error is received from the server
   socket.on('err', function(e){
