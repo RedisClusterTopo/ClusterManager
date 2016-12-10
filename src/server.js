@@ -12,7 +12,7 @@ var ec2 = new AWS.EC2({apiVersion: '2016-09-15'});
 var Command = require('ioredis').Command;
 
 
-var ClientToken = require('./js/server_scripts/client/ClientToken.js');
+var ClientToken = require('./js/ClientToken.js');
 
 //Store objects containing ec2 info, ioredis info and the corresponding socket
 var clientStore = [];
