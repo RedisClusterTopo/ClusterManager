@@ -19,9 +19,9 @@ var clientStore = [];
 
 server.listen(8080);
 
-app.use('/js', express.static('js'));
-app.use('../public', express.static('public'));
-app.use('/css', express.static('css'));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/css', express.static(path.join(__dirname, 'css')));
 
 app.get('/', function (req, res) {
   res.sendFile(path.join(__dirname, '../public', 'aws-login.html'));
