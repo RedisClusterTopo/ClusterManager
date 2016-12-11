@@ -1,4 +1,5 @@
 var app = require('express')();
+var fs = require('fs');
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var express = require('express');
@@ -8,11 +9,12 @@ var Command = require('ioredis').Command;
 var ClientToken = require('./js/server-scripts/ClientToken.js');
 
 var test = false; //Toggle whether to use json data stored in the test directory
+var testData = {};
+testData.ec2 = fs.readFileSync(path.join(__dirname, 'test/raw-cluster.json'), 'utf8');
+testData.parsed = fs.readFileSync(path.join(__dirname, 'test/parsed-cluster.json'), 'utf8');
 
 process.argv.forEach(function (val, index, array) {
-    console.log(index + ': ' + val);
-
-    if(index == 1 && val == "test"){
+    if(index == 2 && val == "test"){
         test = true;
     }
 });
@@ -81,21 +83,30 @@ function initClient(tag, socket, callback){
 
     var newClient = new ClientToken(tag.key, tag.val, socket);
 
-    //Make ec2 query call and update token info based on return of query
-    newClient.queryEC2(function(d){
-        newClient.setEC2Data(d);
+    if(!test) {
+        //Make ec2 query call and update token info based on return of query
+        newClient.queryEC2(function(d){
+            newClient.setEC2Data(d);
 
-        // newClient.parseNodes();   //Unimplemented - token storage of host/port map for nodes
-        // newClient.initCommander(); //Unimplemented - token storage of ioredis object
+            // newClient.parseNodes();   //Unimplemented - token storage of host/port map for nodes
+            // newClient.initCommander(); //Unimplemented - token storage of ioredis object
 
-        clientStore.push(newClient);
+            clientStore.push(newClient);
 
-        newClient.socket.emit('tag-response', null); //Tell client to advance to index
-    });
+            newClient.socket.emit('tag-response', null); //Tell client to advance to index
+        });
+    }
+    else {
+        newClient.setEC2Data(testData);
+    }
+
 }
 
 
 function updateClient(cid, callback){
+    if(test){
+
+    }
     //Iterate through stored clients until a tag key/val is matched
     clientStore.forEach(function(cl){
         if(tag.key == cl.getClientID().key && tag.val == cl.getClientID().val){
