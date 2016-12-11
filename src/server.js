@@ -7,10 +7,21 @@ var path = require('path');
 var Command = require('ioredis').Command;
 var ClientToken = require('./js/server-scripts/ClientToken.js');
 
+var test = false; //Toggle whether to use json data stored in the test directory
+
+process.argv.forEach(function (val, index, array) {
+    console.log(index + ': ' + val);
+
+    if(index == 1 && val == "test"){
+        test = true;
+    }
+});
+
 //Store objects containing ec2 info, ioredis info and the corresponding socket
 var clientStore = [];
 
 server.listen(8080);
+
 
 app.use('/js', express.static(path.join(__dirname, 'js')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
