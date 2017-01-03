@@ -3,6 +3,9 @@
 var Cluster = require('ioredis').Cluster;
 var querymanager = require('./query-manager.js');
 
+
+//Data object representing a client connection and all related components used in
+//accessing and manipulating ec2 and ioredis info
 module.exports = class ClientToken {
 
     constructor(k, v, socket){
@@ -16,8 +19,10 @@ module.exports = class ClientToken {
 
 
     queryEC2(cb){
+        var _this = this;
         this.queryManager.getInstancesByTag(this.client_id, function(d){
-            cb(d);
+            _this.setEC2Data(d);
+            cb(_this);
         });
     }
 
@@ -42,4 +47,6 @@ module.exports = class ClientToken {
     getEC2Data(){
         return this.ec2data;
     }
+
+
 }

@@ -4,6 +4,8 @@ var AWS = require('aws-sdk');
 AWS.config.update({region: 'us-west-2'});
 var ec2 = new AWS.EC2({apiVersion: '2016-09-15'});
 
+
+//Manages queries to ec2 in order to collect instance information for Redis Cluster hosts
 module.exports = class querymanager {
 
     constructor(){
@@ -33,7 +35,7 @@ module.exports = class querymanager {
             var instances = [];
 
 
-            if (err) debug(err, err.stack);
+            if (err) console.log(err, err.stack);
             else{
 
                 var i;
