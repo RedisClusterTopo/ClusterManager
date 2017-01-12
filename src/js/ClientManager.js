@@ -46,10 +46,9 @@ module.exports = class ClientManager {
     }
 
     update(id, cb){
-        this.getClient(id).queryEC2(cb);
+        if(this.getClient(id))
+            this.getClient(id).queryEC2(cb);
     }
-
-
 
     isUnique(newClient){
         var found = true;

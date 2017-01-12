@@ -9,7 +9,7 @@ var ClientManager = require('./js/ClientManager.js');
 var test = false; //Toggle whether to use json data stored in the test directory
 
 process.argv.forEach(function (val, index, array) {
-    if(index == 1 && val == "test"){
+    if(index == 2 && val == "test"){
         test = true;
     }
 });
@@ -36,11 +36,14 @@ var client_manager = new ClientManager();
 //Add event listeners to new socket connections
 io.on('connection', function (socket) {
 
+    if(test){
+        socket.emit('tag-response', null);
+    }
+
     // User connects and wants to access with the tag given
     socket.on('init-tag', function(tag){
         client_manager.addClient(tag, socket, function(newClient){
             newClient.queryEC2(function(){
-
                 newClient.socket.emit('tag-response', null);
             });
         });
@@ -48,7 +51,17 @@ io.on('connection', function (socket) {
 
     //Initial forward of ec2 info to client
     socket.on('init app', function(clientID){
-        socket.emit('topo init', client_manager.getClient(clientID).getEC2Data());
+        if(test){
+            socket.emit('topo init test', null);
+            return;
+        }
+
+        if(client_manager.getClient(clientID) != null)
+            socket.emit('topo init', client_manager.getClient(clientID).getEC2Data());
+        else{
+            socket.emit('client not found', null)   //Move client back to login
+        }
+
     });
 
     //Make calls to ec2, update cluster node states then forward data to client

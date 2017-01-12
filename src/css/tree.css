@@ -6,6 +6,12 @@ stroke: steelblue;
 stroke-width: 3px;
 }
 
+.node rect {
+fill: #fff;
+stroke: steelblue;
+stroke-width: 3px;
+}
+
 .node text { font: 12px sans-serif; }
 
 .link {

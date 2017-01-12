@@ -1,7 +1,7 @@
 "use strict";
 
 var Cluster = require('ioredis').Cluster;
-var querymanager = require('./query-manager.js');
+var QueryManager = require('./QueryManager.js');
 
 
 //Data object representing a client connection and all related components used in
@@ -14,7 +14,7 @@ module.exports = class ClientToken {
         this.nodes = null;
         this.cluster_commander = null;
         this.ec2data = null;
-        this.queryManager = new querymanager();
+        this.queryManager = new QueryManager();
     }
 
 
@@ -29,7 +29,6 @@ module.exports = class ClientToken {
     parseNodes(){
         //TODO: iterate through this.ec2data to build a hash/port map of cluster nodes
         //possibly chain a call to update this.cluster_commander with new nodes?
-
     }
 
     initCommander(){
