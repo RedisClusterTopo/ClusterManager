@@ -19,16 +19,16 @@
 }
 
 #wrapper.leftMenuOff {
-    padding-left: 250px;
+    padding-left: 300px;
 }
 
 #sidebar-wrapper {
     z-index: 1000;
     position: fixed;
-    left: 250px;
+    left: 300px;
     width: 0;
     height: 100%;
-    margin-left: -250px;
+    margin-left: -300px;
     overflow-y: auto;
     background: #001;
     -webkit-transition: all 0.5s ease;
@@ -38,7 +38,7 @@
 }
 
 #wrapper.leftMenuOff #sidebar-wrapper {
-    width: 250px;
+    width: 300px;
 }
 
 #page-content-wrapper {
@@ -49,7 +49,7 @@
 
 #wrapper.leftMenuOff #page-content-wrapper {
     position: absolute;
-    margin-right: -250px;
+    margin-right: -300px;
 }
 
 #sidebar-wrapper li {
@@ -83,7 +83,7 @@ select {
 
 @media(min-width:768px) {
     #wrapper {
-        padding-left: 250px;
+        padding-left: 300px;
     }
 
     #wrapper.leftMenuOff {
@@ -91,7 +91,7 @@ select {
     }
 
     #sidebar-wrapper {
-        width: 250px;
+        width: 300px;
     }
 
     #wrapper.leftMenuOff #sidebar-wrapper {

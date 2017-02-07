@@ -1,1 +1,1 @@
-//Logic for ioredis 
+// Logic for ioredis
