@@ -6,6 +6,7 @@ var path = require('path');
 
 var ClientManager = require('./js/ClientManager.js');
 
+
 var test = false; //Toggle whether to use json data stored in the test directory
 
 process.argv.forEach(function (val, index, array) {
@@ -56,8 +57,10 @@ io.on('connection', function (socket) {
             return;
         }
 
-        if(client_manager.getClient(clientID) != null)
+        if(client_manager.getClient(clientID) != null){
+            client_manager.getClient(clientID).initCommander();
             socket.emit('topo init', client_manager.getClient(clientID).getEC2Data());
+          }
         else{
             socket.emit('client not found', null)   //Move client back to login
         }

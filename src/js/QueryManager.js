@@ -56,7 +56,7 @@ module.exports = class QueryManager {
                                 instances.push(inst);
                             });
                         });
-
+                        console.log(instances);
                         callback(instances); //to getInstancesByTag()
                     }
                 });
