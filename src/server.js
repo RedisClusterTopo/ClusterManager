@@ -6,7 +6,8 @@ var path = require('path')
 
 var ClientManager = require('./js/ClientManager.js')
 
-var test = false // Toggle whether to use json data stored in the test directory
+var test = false; //Toggle whether to use json data stored in the test directory
+
 
 process.argv.forEach(function (val, index, array) {
   if (index === 2 && val === 'test') {
@@ -52,11 +53,53 @@ io.on('connection', function (socket) {
       return
     }
 
+<<<<<<< HEAD
     if (clientManager.getClient(clientID) != null) {
       socket.emit('topo init', clientManager.getClient(clientID).getEC2Data())
     }
     else {
       socket.emit('client not found', null)// Move client back to login
+=======
+    // User connects and wants to access with the tag given
+    socket.on('init-tag', function(tag){
+        client_manager.addClient(tag, socket, function(newClient){
+            newClient.queryEC2(function(){
+                newClient.socket.emit('tag-response', null);
+            });
+        });
+    });
+
+    //Initial forward of ec2 info to client
+    socket.on('init app', function(clientID){
+        if(test){
+            socket.emit('topo init test', null);
+            return;
+        }
+
+        if(client_manager.getClient(clientID) != null){
+            client_manager.getClient(clientID).initCommander();
+            socket.emit('topo init', client_manager.getClient(clientID).getEC2Data());
+          }
+        else{
+            socket.emit('client not found', null)   //Move client back to login
+        }
+
+    });
+
+    //Make calls to ec2, update cluster node states then forward data to client
+    socket.on('update topo', function(clientID){
+        client_manager.update(clientID, function(c){
+            c.socket.emit('topo update', c.getEC2Data());
+        });
+    });
+});
+
+
+var debugMode = true;
+function debug(s) {
+    if (debug){
+        console.log(s);
+>>>>>>> ioredisB
     }
   })
 
