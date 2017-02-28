@@ -2,73 +2,74 @@
 // Logic for ioredis
 var Redis = require('ioredis')
 var Commander = require('ioredis').Command
-var _this
 
 // This call will contain the functionality to get information from a rediis cluster
 module.exports = class ClusterCmdManager {
-  constructor (port, ip) {
-    _this = this
-    this.cluster = new Redis.Cluster([port, ip])
-    this.cluster.on('ready', function () {
-      /*         This section was for testing commands to send tothe cluster
-      as of right now there seems to be an issue calling the functions as ClusterCmdManager.<Command function>
-      var info = new Commander('info', null, 'utf8', function (err, result) {
-      console.log('Node Info Result: ' + result)
-      })
-      console.log(_this.cluster.getBuiltinCommands())
-      */
-      // _this.cluster.sendCommand(slots)
-      // /this.getHashSlots()
-      // console.log(new Commander())
-      _this.cluster.sendCommand(/*info*/)
+  constructor (nodes) {
+    this.cluster = new Redis.Cluster(nodes)
+    this._registerListeners()
+  }
+
+  // Set up handlers for ioredis connection
+  _registerListeners () {
+    var _this = this
+
+    _this.cluster.on('ready', function () {
+    })
+
+    _this.cluster.on('err', function (err) {
+      console.log(err)
     })
   }
 
-  // cluster slots commands retuns the hash rang for the entire cluster as well as node ids
-  getNodes () {
-    var count = 0
+  // Cluster slots commands retuns the hash range for the entire cluster as well as node ids
+  getNodes (cb) {
     var slots = new Commander('cluster', ['slots'], 'utf8', function (err, result) {
+      var returnVal = {
+        masters: []
+      }
+
       if (err) console.log(err)
-      // The result being returned here is an array of the nodes in the cluster. It seems to return the masters
-      console.log('Cluster Slots Result: ' + result)
-      result.forEach(function (node) {
-        console.log('Node Slot Configurations: ' + node)
-        /* This array is as follows
-        0: lower hashslot
-        1: upper hashrange
-        2: master node array
-        0: IP
-        1: Port
-        2: ID
-        3: slave node array
-        0: IP
-        1: Port
-        2: ID */
-        var detailsMaster = node[2]
 
-        var detailsSlave = node[3]
-        console.log('Master node ' + count + ' Lower Hash Range: ' + node[0])
-        console.log('Master node ' + count + ' Upper Hash Range: ' + node[1])
+      result.forEach(function (masterNode) {
+        var n = {
+          lowerHash: null,
+          upperHash: null,
+          ip: null,
+          port: null,
+          id: null,
+          slaves: []
+        }
 
-        console.log('Master node ' + count + ' IP: ' + detailsMaster[0])
-        console.log('Master node ' + count + ' Port: ' + detailsMaster[1])
-        console.log('Master node ' + count + ' ID: ' + detailsMaster[2])
+        masterNode.forEach(function (val, i) {
+          if (i === 0) n.lowerHash = val
+          else if (i === 1) n.upperHash = val
+          else if (i === 2) {
+            n.ip = '' + val[0]
+            n.port = val[1]
+            n.id = '' + val[2]
+          } else {
+            var newSlave = {}
+            newSlave.ip = '' + val[0]
+            newSlave.port = val[1]
+            newSlave.id = '' + val[2]
+            n.slaves.push(newSlave)
+          }
+        })
 
-        console.log('Slave node ' + count + ' ID: ' + detailsSlave[0])
-        console.log('Slave node ' + count + ' ID: ' + detailsSlave[1])
-        console.log('Slave node ' + count + ' ID: ' + detailsSlave[2])
-        // TODO: add all of the above fields in a redtop cluster and return it
-        count++
+        returnVal.masters.push(n)
       })
+
+      cb(returnVal)
     })
-    _this.cluster.sendCommand(slots)
+    this.cluster.sendCommand(slots)
   }
 
   getSlaves () {
 
   }
 
-  getClusterInfo () {
+  getClusterInfo (cb) {
     var clusterInfo = new Commander('cluster', ['info'], 'utf8', function (err, result) {
       if (err) console.log(err)
       /* the object returned from this call:
@@ -83,9 +84,10 @@ module.exports = class ClusterCmdManager {
       8: messages sent
       9: messages recieved
       */
-      console.log('Cluster Info Result: ' + result)
+      // console.log('Cluster Info Result: ' + result)
+      cb(result)
     })
-    _this.cluster.sendCommand(clusterInfo)
+    this.cluster.sendCommand(clusterInfo)
   }
   // for testing purposes
   getCommands () {

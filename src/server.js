@@ -1,16 +1,20 @@
-var app = require('express')()
+var express = require('express')
+var app = express()
 var server = require('http').Server(app)
 var io = require('socket.io')(server)
-var express = require('express')
+
 var path = require('path')
 
-var ClientManager = require('./js/ClientManager.js')
+var ClusterManager = require('./js/ClusterManager.js')
 
-var test = false // Toggle whether to use json data stored in the test directory
+var random = false // Toggle whether to generate a random cluster to view
+var localCluster = false // Toggle whether to connect to a locally hosted redis cluster
 
 process.argv.forEach(function (val, index, array) {
-  if (index === 2 && val === 'test') {
-    test = true
+  if (val === 'random') {
+    random = true
+  } else if (val === 'local') {
+    localCluster = true // Use a topology with one ec2 instance node (the server host)
   }
 })
 
@@ -28,42 +32,46 @@ app.get('/index', function (req, res) {
   res.sendFile(path.join(__dirname, '../public', 'index.html'))
 })
 
-var clientManager = new ClientManager()
+var clusterManager = new ClusterManager()
 
 // Add event listeners to new socket connections
 io.on('connection', function (socket) {
-  if (test) {
-    socket.emit('tag-response', null)
+  // Guards for random and localCluster clients connecting to login screen
+  if (localCluster) {
+    socket.emit('local cluster', null)  // Alert the client to draw only 1 instance
+    socket.on('subscribe', function () {
+      clusterManager.addToken({key: 'local', val: 'cluster'}, socket, null, function () {})
+    })
+
+    return
+  } else if (random) {
+    socket.emit('generate random', null) // Forward the client from login to index to generate a random cluster
+
+    return
   }
 
-  // User connects and wants to access with the tag given
-  socket.on('init-tag', function (tag) {
-    clientManager.addClient(tag, socket, function (newClient) {
-      newClient.queryEC2(function () {
-        newClient.socket.emit('tag-response', null)
-      })
+  // Register a user trying to log in normally
+  socket.on('subscribe', function (clientID, timeout) {
+    if (!timeout) timeout = 5000
+
+    // Add the subscribing client to the clusterManager
+    clusterManager.addToken(clientID, socket, timeout, function (newClient) {
     })
   })
 
-  // Initial forward of ec2 info to client
-  socket.on('init app', function (clientID) {
-    if (test) {
-      socket.emit('topo init test', null)
-      return
-    }
-
-    if (clientManager.getClient(clientID) != null) {
-      clientManager.getClient(clientID).initCommander()
-      socket.emit('topo init', clientManager.getClient(clientID).getEC2Data())
-    } else {
-      socket.emit('client not found', null)   // Move client back to login
-    }
-  })
-
-  // Make calls to ec2, update cluster node states then forward data to client
-  socket.on('update topo', function (clientID) {
-    clientManager.update(clientID, function (c) {
-      c.socket.emit('topo update', c.getEC2Data())
+  // Remove the socket from its corresponding ClusterToken if subscribed
+  socket.on('unsubscribe', function (clientID) {
+    clusterManager.delToken(clientID, function (success, err) {
+      if (!success) {
+        console.log(err)
+      } else {
+        debug('Client successfully deleted')
+      }
     })
   })
 })
+
+var debugMode = true
+function debug (s) {
+  if (debugMode) console.log(s)
+}
