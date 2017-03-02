@@ -5,6 +5,13 @@ var io = require('socket.io')(server)
 
 var path = require('path')
 
+// To parse subscriber POST json data
+var bodyParser = require('body-parser')
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({
+  extended: true
+}))
+
 var ClusterManager = require('./js/ClusterManager.js')
 
 var random = false // Toggle whether to generate a random cluster to view
@@ -69,6 +76,11 @@ io.on('connection', function (socket) {
       }
     })
   })
+})
+
+// Handle async requests for updates on a cluster
+app.post('/update', function(req, res) {
+  console.log(req.body) // The data payload sent with the POST request
 })
 
 var debugMode = true

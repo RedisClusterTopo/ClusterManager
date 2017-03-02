@@ -68,7 +68,7 @@ module.exports = class ClusterToken {
 
   // Use the instantiated ioredis commander to collect an aggregate of Redis Cluster info for parsing
   queryRedis (cb) {
-    var _this
+    var _this = this
 
     // TODO: expose a single function in ClusterCmdManager to get the necessary
     // aggregate of ioredis information to be passed to the parser
@@ -76,7 +76,7 @@ module.exports = class ClusterToken {
       _this.redisData.nodes = nodes
       _this.cluster_commander.getClusterInfo(function (info) {
         _this.redisData.info = info
-        cb(this.redisData)
+        cb(_this.redisData)
       })
     })
   }
@@ -89,6 +89,7 @@ module.exports = class ClusterToken {
       _this.queryEC2(function (_this) {
         // Query redis in a similar manner, pass both raw data collections to parser
         // and return parsed redtop + flags
+        // console.log(_this.parser._parseRedtop(_this.getEC2Data()))
         socket.emit('update', _this.parser._parseRedtop(_this.getEC2Data()))
       })
     }, 5000)
@@ -99,7 +100,9 @@ module.exports = class ClusterToken {
   // NOTE: REDTOP ClusterNodes ARE CREATED FROM EC2 TAGS WHEN CALLING THIS FUNCTION
   initCommander (redtop) {
     var nodes = []
-    if (redtop) {
+    if (redtop === 'local') {
+      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '7000']]) // Connect to local cluster
+    } else if (redtop) {
       redtop.getNodes().forEach(function (node) {
         nodes.push([node.port, node.host])
       })
@@ -109,8 +112,6 @@ module.exports = class ClusterToken {
       } else {
         console.log('Error initializing ClusterCmdManager of ' + this.clusterID.key + ':' + this.clusterID.val + ': no node tags in EC2 data')
       }
-    } else if (redtop === 'local') {
-      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '7000']]) // Connect to local cluster
     } else {
       console.log('Error initializing ClusterCmdManager ' + this.clusterID.key + ':' + this.clusterID.val + ': no ec2data')
     }
