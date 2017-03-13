@@ -2,11 +2,9 @@ var express = require('express')
 var app = express()
 var server = require('http').Server(app)
 var io = require('socket.io')(server)
-
 var path = require('path')
 
-// To parse subscriber POST json data
-var bodyParser = require('body-parser')
+var bodyParser = require('body-parser') // For parsing POST request payload
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({
   extended: true
@@ -47,39 +45,30 @@ io.on('connection', function (socket) {
   if (localCluster) {
     socket.emit('local cluster', null)  // Alert the client to draw only 1 instance
     socket.on('subscribe', function () {
-      clusterManager.addToken({key: 'local', val: 'cluster'}, socket, null, function () {})
+      clusterManager.addToken({key: 'local', val: 'cluster'}, socket)
     })
 
     return
   } else if (random) {
     socket.emit('generate random', null) // Forward the client from login to index to generate a random cluster
-
     return
   }
 
   // Register a user trying to log in normally
-  socket.on('subscribe', function (clientID, timeout) {
-    if (!timeout) timeout = 5000
-
+  socket.on('subscribe', function (clientID) {
     // Add the subscribing client to the clusterManager
-    clusterManager.addToken(clientID, socket, timeout, function (newClient) {
+    clusterManager.addToken(clientID, socket, function (newClient) {
     })
   })
 
   // Remove the socket from its corresponding ClusterToken if subscribed
   socket.on('unsubscribe', function (clientID) {
-    clusterManager.delToken(clientID, function (success, err) {
-      if (!success) {
-        console.log(err)
-      } else {
-        debug('Client successfully deleted')
-      }
-    })
+    clusterManager.getToken(clientID).delSubscriber(socket)
   })
 })
 
 // Handle async requests for updates on a cluster
-app.post('/update', function(req, res) {
+app.post('/update', function (req, res) {
   console.log(req.body) // The data payload sent with the POST request
 })
 

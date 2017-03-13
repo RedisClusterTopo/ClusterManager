@@ -1,5 +1,4 @@
 'use strict'
-
 var ClusterToken = require('./ClusterToken.js')
 
 // This class is used to manipulate client connections via a collection of client tokens
@@ -8,14 +7,12 @@ module.exports = class ClusterManager {
     this.tokens = []
   }
 
-  addToken (id, socket, timeout, cb) {
+  addToken (id, socket) {
     if (this._isUnique(id)) {
-      var c = new ClusterToken(id.key, id.val, socket, timeout)
+      var c = new ClusterToken(id.key, id.val, socket)
       this.tokens.push(c)
-      cb(c)
     } else {
-      this.getToken(id).addSubscriber(socket, timeout)
-      cb(false)
+      this.getToken(id).addSubscriber(socket)
     }
   }
 

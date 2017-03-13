@@ -1,0 +1,10 @@
+{
+  "name": "redtop-server",
+  "version": "0.1.0",
+  "description": "Server logic for the redtop app",
+  "repository": "https://github.com/RedisClusterTopo/redtop-server",
+  "author": "Alex Kiefer, Cory Stonitsch, Chris Bendt ",
+  "license": "MIT",
+  "devDependencies": {
+  }
+}

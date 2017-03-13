@@ -13,47 +13,36 @@ var RedtopParser = require('./RedtopParser.js')
 
 module.exports = class ClusterToken {
 
-  constructor (k, v, socket, timeout) {
+  constructor (k, v, socket) {
     this.clusterID = {key: k, val: v}
-    this.connections = []
-    this.subscribers = []
+    this.subscribers = [] // Contains a list of sockets subscribed to updates from this cluster
     this.nodes = null
     this.queryManager = new QueryManager()
     this.cluster_commander = null
     this.ec2data = null
     this.redisData = {}
     this.parser = new RedtopParser()
+    this.updater = null // The setInterval function responsible for calling ioredis and EC2 queries
 
     // Check key/val of new connection for dev configuration
     if (k === 'local' && v === 'cluster') {
       this._initLocal(this, socket)
     } else {
-      this.queryEC2(function (_this) {
-        var tempRedtop = _this.parser._parseRedtop(_this.getEC2Data())
-        _this.initCommander(tempRedtop)
-        _this.addSubscriber(socket, timeout)  // Start the update setInterval function
-      })
+      this.updater = this._update(5000) // Update and push to all sockets every 5 seonds
     }
   }
 
   // Add a subscriber to the cluster represented by this token
-  addSubscriber (socket, timeout) {
-    var _this = this
+  addSubscriber (socket) {
     if (this._isUniqueSocket(socket)) {
-      // Push to the subscribers list with a socket ID to be cleared later
-      this.subscribers.push({
-        'socket': socket,
-        'update': _this._update(5000, socket) // Call ec2/ioredis updates & parser
-      })
+      this.subscribers.push(socket)
     }
   }
 
   // Remove a subscriber to the cluster represented by this token
   delSubscriber (socket) {
-    this.connections.forEach(function (conn) {
-      // if sockets match
-        // clearInterval(conn.updateFunction)
-        // remove related ClientConnection (unimplemented)
+    this.subscibers.forEach(function (sub) {
+      console.log(sub)
     })
   }
 
@@ -62,7 +51,7 @@ module.exports = class ClusterToken {
     var _this = this
     this.queryManager.getInstancesByTag(this.clusterID, function (d) {
       _this.setEC2Data(d)
-      cb(_this)
+      cb()
     })
   }
 
@@ -76,21 +65,26 @@ module.exports = class ClusterToken {
       _this.redisData.nodes = nodes
       _this.cluster_commander.getClusterInfo(function (info) {
         _this.redisData.info = info
-        cb(_this.redisData)
+        cb()
       })
     })
   }
 
   // Orchestrate information collection / parsing to be pushed to clients
   // TODO: store the timeout function in a location so that it can be cleared later
-  _update (timeout, socket) {
+  _update (timeout) {
     var _this = this
     return setInterval(function () {
-      _this.queryEC2(function (_this) {
-        // Query redis in a similar manner, pass both raw data collections to parser
-        // and return parsed redtop + flags
-        // console.log(_this.parser._parseRedtop(_this.getEC2Data()))
-        socket.emit('update', _this.parser._parseRedtop(_this.getEC2Data()))
+      _this.queryEC2(function () {
+        _this.queryRedis(function () {
+          // Build an object containing:
+          //  - the redtop object
+          //  - state failures
+          var clusterReport = _this.parser.parse(_this.ec2data, _this.redisData, false)
+          _this.subscribers.forEach(function (sub) {
+            sub.emit('update', clusterReport)
+          })
+        })
       })
     }, 5000)
   }
@@ -142,7 +136,11 @@ module.exports = class ClusterToken {
             }]
         }
 
-        socket.emit('update', _this.parser.parse(r, _this.redisData, true))
+        var clusterState = _this.parser.parse(r, _this.redisData, true)
+
+        // console.log(clusterState.redtop)
+
+        socket.emit('update', clusterState)
       })
     }, 5000)
   }

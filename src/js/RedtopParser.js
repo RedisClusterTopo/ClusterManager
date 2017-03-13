@@ -9,28 +9,37 @@ var ClusterNode = require('./ClusterNode.js')
 module.exports = class RedtopParser {
 
   parse (ec2info, redisInfo, local) {
-    if (local) {
-      return this._parseLocal(ec2info, redisInfo)
-    }
-
-    var returnVal = {
+    var clusterState = {
       redtop: null,
       stateErrors: null // A list of possible errors in the cluster and the associated nodes
     }
 
+    if (local) {
+      clusterState.redtop = this._parseLocal(ec2info, redisInfo)
+
+      this._evalClusterState(ec2info, clusterState.redtop, function (errors) {
+        clusterState.stateErrors = errors
+      })
+
+      return clusterState
+    }
+
     this._parseRedtop(ec2info, redisInfo, function (rt) {
-      returnVal.redtop = rt
+      clusterState.redtop = rt
     })
 
-    this._evalClusterState(returnVal.redtop, redisInfo, function (flags) {
-      returnVal.flags = flags
+    this._evalClusterState(ec2info, clusterState.redtop, function (flags) {
+      clusterState.flags = flags
     })
 
-    return returnVal
+    return clusterState
   }
 
-  _evalClusterState (redtop, redisInfo, cb) {
+  _evalClusterState (ec2info, redtop, cb) {
     var flags = {}
+
+    // Check for replication outside az
+    // console.log(redtop)
 
     cb(flags)
   }
@@ -52,42 +61,47 @@ module.exports = class RedtopParser {
       ec2inst.setId(inst.InstanceId)
       ec2inst.setIp(inst.PrivateIpAddress)
       t.addInstance(ec2inst, sn, az)
-
-// ########################################################################## //
-      // TODO: parse redisInfo to build a list of nodes and their associated
-      // information, then add to the correct Ec2Instance
-// ########################################################################## //
     })
 
     return t
   }
 
   _parseLocal (redtop, redisInfo) {
-    console.log(redisInfo)
-    redisInfo.nodes.masters.forEach(function (master) {
-      var newMaster = {}
-      newMaster.ip = master.ip
-      newMaster.port = master.port
-      newMaster.hash = []
-      newMaster.hash.push({lower: master.lowerHash, upper: master.upperHash})
-      newMaster.slaves = []
-      newMaster.type = 'Cluster Node'
-      newMaster.role = 'Master'
+    var t = new RedTop()
+    var az = new AwsAvailabilityZone()
+    var sn = new AwsSubnet()
+    var inst = new Ec2Instance()
+    az.setName(redtop.zones[0].name)
+    sn.setNetID(redtop.zones[0].subnets[0].netid)
+    inst.setId(redtop.zones[0].subnets[0].instances[0].id)
+
+    redisInfo.nodes.masters.forEach(function (master, index) {
+      var newMaster = new ClusterNode()
+      newMaster.setHost(master.ip)
+      newMaster.setPort(master.port)
+      newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
+      newMaster.setRole('Master')
       master.slaves.forEach(function (slave) {
-        var newSlave = {}
-        newSlave.ip = slave.ip
-        newSlave.port = slave.port
-        newSlave.id = slave.id
-        newSlave.hash = []
-        newSlave.role = 'Slave'
-        newSlave.hash.push({lower: master.lowerHash, upper: master.upperHash})
-        newSlave.replicates = newMaster
-        master.slaves.push(newSlave)
-        redtop.zones[0].subnets[0].instances[0].nodes.push(newSlave)
+        var newSlave = new ClusterNode()
+        newSlave.setHost(slave.ip)
+        newSlave.setPort(slave.port)
+        newSlave.setRole('Slave')
+        newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
+        // TODO: set the .replicates field of newSlave by finding its master in
+        // the redtop object
+        t.getMasters().forEach(function (master) {
+        })
+
+        newMaster.addSlave(newSlave)
+        inst.addNode(newSlave)
       })
-      redtop.zones[0].subnets[0].instances[0].nodes.push(newMaster)
+      inst.addNode(newMaster)
     })
 
-    return redtop
+    sn.addInstance(inst)
+    az.addSubnet(sn)
+    t.addAvailabilityZone(az)
+
+    return t
   }
 }
