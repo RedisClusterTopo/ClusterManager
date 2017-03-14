@@ -7,6 +7,7 @@ module.exports = class ClusterNode {
     this.port = null  // The port this node is running over
     this.role = null  // Master or slave
     this.type = 'Cluster Node'
+    this.id = null    // ID of the node *NEW used to link masters/slaves
     this.replicates = null  // The master this node replicates if this.role == slave
     this.hash = [] // Array of objects with start and end hash slots to handle
     // Nodes which serve a non-contiguous hash range
@@ -44,19 +45,19 @@ module.exports = class ClusterNode {
     this.role = r
   }
 
-  addSlave (newSlave) {
+  addSlave (newSlaveID) {
     if (this.role.toUpperCase() === 'MASTER') {
-      if (newSlave) {
+      if (newSlaveID) {
         var found = false
 
         this.slaves.forEach(function (slave) {
-          if (newSlave === slave) {
+          if (newSlaveID === slave.id) {
             found = true
           }
         })
 
         if (!found) {
-          this.slaves.push(newSlave)
+          this.slaves.push(newSlaveID)
         }
       }
     } else {
@@ -99,14 +100,19 @@ module.exports = class ClusterNode {
   setHost (h) {
     this.host = h
   }
-
+  setID(id){
+    this.id = id
+  }
+  getID(){
+    return this.id
+  }
   setPort (p) {
     this.port = p
   }
 
-  setReplicates (r) {
+  setReplicates (rID) {
     if (this.role.toUpperCase() === 'SLAVE') {
-      this.replicates = r
+      this.replicates = rID
     }
   }
 }

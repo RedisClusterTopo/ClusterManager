@@ -77,8 +77,10 @@ module.exports = class RedtopParser {
 
     redisInfo.nodes.masters.forEach(function (master, index) {
       var newMaster = new ClusterNode()
+      var slavers = []
       newMaster.setHost(master.ip)
       newMaster.setPort(master.port)
+      newMaster.setID(master.id)
       newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
       newMaster.setRole('Master')
       master.slaves.forEach(function (slave) {
@@ -86,22 +88,19 @@ module.exports = class RedtopParser {
         newSlave.setHost(slave.ip)
         newSlave.setPort(slave.port)
         newSlave.setRole('Slave')
+        newSlave.setID(slave.id)
         newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
         // TODO: set the .replicates field of newSlave by finding its master in
         // the redtop object
-        t.getMasters().forEach(function (master) {
-        })
-
-        newMaster.addSlave(newSlave)
+        newMaster.addSlave(slave.id)
+        newSlave.setReplicates(master.id)
         inst.addNode(newSlave)
       })
       inst.addNode(newMaster)
     })
-
     sn.addInstance(inst)
     az.addSubnet(sn)
     t.addAvailabilityZone(az)
-
     return t
   }
 }

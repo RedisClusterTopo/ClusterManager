@@ -65,8 +65,12 @@ module.exports = class ClusterCmdManager {
     this.cluster.sendCommand(slots)
   }
 
-  getSlaves () {
-
+  getErrorFlags (cluster) {
+    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS',id], 'utf8', function (err, result) {
+        result.forEach(function(flag){
+          console.log(flag)
+        })
+    })
   }
 
   getClusterInfo (cb) {
