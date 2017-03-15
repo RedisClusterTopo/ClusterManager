@@ -95,7 +95,7 @@ module.exports = class ClusterToken {
   initCommander (redtop) {
     var nodes = []
     if (redtop === 'local') {
-      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '30001']]) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '7000']]) // Connect to local cluster
     } else if (redtop) {
       redtop.getNodes().forEach(function (node) {
         nodes.push([node.port, node.host])

@@ -66,7 +66,7 @@ module.exports = class ClusterCmdManager {
   }
 
   getErrorFlags (cluster) {
-    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS',id], 'utf8', function (err, result) {
+    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS', /* CLUSTER ID */], 'utf8', function (err, result) {
         result.forEach(function(flag){
           console.log(flag)
         })
