@@ -111,6 +111,18 @@ module.exports = class RedTop {
     return this.zones
   }
 
+  getAvailabilityZoneByNodeID (nodeID) {
+    this.zones.forEach(function (zone) {
+      zone.getSubnets().forEach(function (subnet) {
+        subnet.getInstances().forEach(function (instance) {
+          instance.getNodes().forEach(function (node) {
+            if (node.id === nodeID) return zone
+          })
+        })
+      })
+    })
+  }
+
   getSubnets (az) {
     if (az) {
       this.zones.forEach(function (zone) {

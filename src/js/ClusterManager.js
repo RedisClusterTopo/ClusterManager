@@ -7,12 +7,12 @@ module.exports = class ClusterManager {
     this.tokens = []
   }
 
-  addToken (id, socket) {
-    if (this._isUnique(id)) {
-      var c = new ClusterToken(id.key, id.val, socket)
+  addToken (vpcId, socket) {
+    if (this._isUnique(vpcId)) {
+      var c = new ClusterToken(vpcId, socket)
       this.tokens.push(c)
     } else {
-      this.getToken(id).addSubscriber(socket)
+      this.getToken(vpcId).addSubscriber(socket)
     }
   }
 

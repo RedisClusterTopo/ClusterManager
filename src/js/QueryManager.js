@@ -7,51 +7,32 @@ var ec2 = new AWS.EC2({apiVersion: '2016-09-15'})
 // Manages queries to ec2 in order to collect instance information for Redis Cluster hosts
 module.exports = class QueryManager {
 
-  // Input: a tag common to some or all resources used to host a particular deployment of Redis Cluster
-  // Output: a set of json objects containing data of each EC2 hosting the Redis Cluster
-  getInstancesByTag (tag, callback) {
+  // Input: an EC2 vpc ID
+  // Output: An array of EC2 instance desriptors for instances within the given vpc
+  getInstanceInfoByVpc (vpcId, cb) {
     var params = {
       Filters: [
         {
-          Name: 'key',
+          Name: 'vpc-id',
           Values: [
-            tag.key
-          ]
-        },
-        {
-          Name: 'value',
-          Values: [
-            tag.val
+            vpcId
           ]
         }
       ]
     }
 
-    ec2.describeTags(params, function (err, data) {
-      var instanceIds = []
-      var instances = []
-
-      if (err) console.log(err, err.stack)
+    ec2.describeInstances(params, function (err, data) {
+      if (err) console.log(err)
       else {
-        for (var i = 0; i < data.Tags.length; i++) {
-          instanceIds.push(data.Tags[i].ResourceId)
-        }
-        params = {
-          InstanceIds: instanceIds
-        }
+        var instances = []
 
-        ec2.describeInstances(params, function (err, data) {
-          if (err) {
-            console.log(err, err.stack) // an error occurred
-          } else {
-            data.Reservations.forEach(function (set) {
-              set.Instances.forEach(function (inst) {
-                instances.push(inst)
-              })
-            })
-            callback(instances)
-          }
+        data.Reservations.forEach(function (reservation) {
+          reservation.Instances.forEach(function (instance) {
+            instances.push(instance)
+          })
         })
+
+        cb(instances)
       }
     })
   }

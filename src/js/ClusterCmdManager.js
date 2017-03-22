@@ -6,7 +6,7 @@ var Commander = require('ioredis').Command
 // This call will contain the functionality to get information from a rediis cluster
 module.exports = class ClusterCmdManager {
   constructor (nodes) {
-    this.cluster = new Redis.Cluster(nodes[0])
+    this.cluster = new Redis.Cluster(nodes)
     this._registerListeners()
   }
 
@@ -15,10 +15,11 @@ module.exports = class ClusterCmdManager {
     var _this = this
 
     _this.cluster.on('ready', function () {
+      // console.log('ioredis ready')
     })
 
-    _this.cluster.on('err', function (err) {
-      console.log(err)
+    _this.cluster.on('error', function (err) {
+      console.log('ioredis failure: ' + err)
     })
   }
 

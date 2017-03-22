@@ -8,7 +8,7 @@ var ClusterNode = require('./ClusterNode.js')
 
 module.exports = class RedtopParser {
 
-  parse (ec2info, redisInfo, local) {
+  parse (ec2info, redisInfo, local, cb) {
     var clusterState = {
       redtop: null,
       stateErrors: null // A list of possible errors in the cluster and the associated nodes
@@ -17,37 +17,72 @@ module.exports = class RedtopParser {
     if (local) {
       clusterState.redtop = this._parseLocal(ec2info, redisInfo)
 
-      this._evalClusterState(ec2info, clusterState.redtop, function (errors) {
+      this._evalClusterState(clusterState.redtop, function (errors) {
         clusterState.stateErrors = errors
       })
+    } else {
+      this._parseRedtop(ec2info, redisInfo, function (rt) {
+        clusterState.redtop = rt
+      })
 
-      return clusterState
+      this._evalClusterState(clusterState.redtop, function (flags) {
+        clusterState.stateErrors = flags
+      })
     }
 
-    this._parseRedtop(ec2info, redisInfo, function (rt) {
-      clusterState.redtop = rt
-    })
-
-    this._evalClusterState(ec2info, clusterState.redtop, function (flags) {
-      clusterState.flags = flags
-    })
-
-    return clusterState
+    cb(clusterState)
   }
 
-  _evalClusterState (ec2info, redtop, cb) {
-    var flags = {}
+  // Used to collect ip/port info for cluster nodes from instance tags
+  // Input: an array of ec2info
+  parseNodesByInstanceInfo (ec2info, cb) {
+    var nodeInfo = []
+    ec2info.forEach(function (instance) {
+      instance.Tags.forEach(function (tag) {
+        if (tag.Key.toUpperCase() === 'MASTER' || tag.Key.toUpperCase() === 'SLAVE') {
+          var node = []
+          node.push(instance.PrivateIpAddress)
+          node.push(tag.Value)
+          nodeInfo.push(node)
+        }
+      })
+    })
 
-    // Check for replication outside az
-    // console.log(redtop)
+    cb(nodeInfo)
+  }
+
+  _evalClusterState (redtop, cb) {
+    if (!redtop) cb()
+
+    var flags = {
+      noExternalReplication: [] // List of masters not replicated outside AZ
+    }
+
+    redtop.getMasters().forEach(function (node) {
+      var replicated = false
+      redtop.getSlaves().forEach(function (slave) {
+        // check each slaves' replicates field against the master's id
+        if (slave.replicates === node.id) {
+          // check that the master and slave who replicates it are in different AZ
+          if (redtop.getAvailabilityZoneByNodeID(slave.replicates) !== redtop.getAvailabilityZoneByNodeID(node.id)) {
+            replicated = true
+          }
+        }
+      })
+
+      if (!replicated) {
+        flags.noExternalReplication.push(node.id)
+      }
+    })
 
     cb(flags)
   }
 
-  _parseRedtop (ec2info, redisInfo) {
+  _parseRedtop (ec2info, redisInfo, cb) {
     // Object to parse data into
     var t = new RedTop()
 
+    // use ec2info to add AZ, Subnet, Instances
     ec2info.forEach(function (inst, i) {
       var az = new AwsAvailabilityZone()
       az.setName(inst.Placement.AvailabilityZone)
@@ -63,10 +98,11 @@ module.exports = class RedtopParser {
       t.addInstance(ec2inst, sn, az)
     })
 
-    return t
+    cb(t)
   }
 
   _parseLocal (redtop, redisInfo) {
+    if (!redisInfo) return
     var t = new RedTop()
     var az = new AwsAvailabilityZone()
     var sn = new AwsSubnet()
@@ -90,8 +126,6 @@ module.exports = class RedtopParser {
         newSlave.setRole('Slave')
         newSlave.setID(slave.id)
         newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
-        // TODO: set the .replicates field of newSlave by finding its master in
-        // the redtop object
         newMaster.addSlave(slave.id)
         newSlave.setReplicates(master.id)
         inst.addNode(newSlave)
