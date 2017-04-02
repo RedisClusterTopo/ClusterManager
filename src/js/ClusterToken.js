@@ -87,7 +87,16 @@ module.exports = class ClusterToken {
               })
             })
           })
+        } else {
+          _this.queryRedis(function () {
+            _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
+              _this.subscribers.forEach(function (sub) {
+                sub.emit('update', clusterReport)
+              })
+            })
+          })
         }
+
 
         // TODO: add split brain checks
         //    -instantiate ioredis objects using each node contained in cluster_commander

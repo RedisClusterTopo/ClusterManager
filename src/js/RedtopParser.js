@@ -40,9 +40,9 @@ module.exports = class RedtopParser {
     ec2info.forEach(function (instance) {
       instance.Tags.forEach(function (tag) {
         if (tag.Key.toUpperCase() === 'MASTER' || tag.Key.toUpperCase() === 'SLAVE') {
-          var node = []
-          node.push(instance.PrivateIpAddress)
-          node.push(tag.Value)
+          var node = {}
+          node.host = instance.PrivateIpAddress
+          node.port = tag.Value
           nodeInfo.push(node)
         }
       })
@@ -81,6 +81,7 @@ module.exports = class RedtopParser {
   _parseRedtop (ec2info, redisInfo, cb) {
     // Object to parse data into
     var t = new RedTop()
+    var _this = this
 
     // use ec2info to add AZ, Subnet, Instances
     ec2info.forEach(function (inst, i) {
@@ -98,7 +99,75 @@ module.exports = class RedtopParser {
       t.addInstance(ec2inst, sn, az)
     })
 
+    // append cluster nodes
+    redisInfo.nodes.master.forEach(function (master, index) {
+      var newMaster = new ClusterNode()
+
+      newMaster.setHost(master.ip)
+      newMaster.setPort(master.port)
+      newMaster.setID(master.id)
+      newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
+      newMaster.setRole('Master')
+      // create slaves for given master
+      master.slaves.forEach(function (slave) {
+        var newSlave = new ClusterNode()
+        newSlave.setHost(slave.ip)
+        newSlave.setPort(slave.port)
+        newSlave.setID(slave.id)
+        newSlave.setRole('Slave')
+        newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
+        newMaster.addSlave(slave.id)
+        newSlave.setReplicates(master.id)
+        t.getInstances().forEach(function (instance) {
+          if (instance.ip === slave.ip) instance.addNode(newSlave) // add slave to correct instance
+        })
+      })
+
+      t.getInstances().forEach(function (instance) {
+        if (instance.ip === master.ip) {
+          instance.addNode(newMaster) // add master to correct instance
+        }
+      })
+    })
+
+    // remove empty non-leaf nodes from topology (bottom up)
+    _this._cleanInstances(t, function (redtop) {
+      _this._cleanSubnets(redtop, function (redtop) {
+        _this._cleanAvailabilityZones(redtop, function (redtop) {
+          t = redtop
+        })
+      })
+    })
+
     cb(t)
+  }
+
+  _cleanInstances (redtop, cb) {
+    redtop.getAvailabilityZones().forEach(function (az, i) {
+      az.getSubnets().forEach(function (sn, j) {
+        sn.getInstances().forEach(function (inst, k) {
+          if (inst.getNodes().length === 0) redtop.delInstance(inst, sn, az)
+        })
+      })
+    })
+
+    cb(redtop)
+  }
+
+  _cleanSubnets (redtop, cb) {
+    redtop.getAvailabilityZones().forEach(function (az, i) {
+      az.getSubnets().forEach(function (sn, j) {
+        if (sn.getInstances().length === 0) redtop.delSubnet(sn, az)
+      })
+    })
+    cb(redtop)
+  }
+
+  _cleanAvailabilityZones (redtop, cb) {
+    redtop.getAvailabilityZones().forEach(function (az, i) {
+      if (az.getSubnets().length === 0) redtop.delAvailabilityZone(az)
+    })
+    cb(redtop)
   }
 
   _parseLocal (redtop, redisInfo) {

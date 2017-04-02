@@ -18,15 +18,13 @@ module.exports = class Ec2Instance {
   }
 
   delNode (n) {
-    if (typeof (n) === 'string') {
-      this.nodes.forEach(function (node, i) {
-        if (node.getHost() === n.getHost()) {
-          this.nodes.slice(i, i + 1)
-        }
-      })
-    } else if (typeof (n) === 'number') {
-      this.nodes.slice(n, n + 1)
-    }
+    var _this = this
+
+    this.nodes.forEach(function (node, i) {
+      if (node.getHost() === n.getHost()) {
+        _this.nodes.splice(i, i + 1)
+      }
+    })
   }
 
   setId (i) {

@@ -19,15 +19,13 @@ module.exports = class RedTop {
 
   // Supports a string arg to remove by name or remove by index
   delAvailabilityZone (az) {
-    if (typeof (az) === 'string') {
-      this.zones.forEach(function (z, i) {
-        if (z.getName() === az.getName()) {
-          this.zones.slice(i, i + 1)
-        }
-      })
-    } else if (typeof (az) === 'number') {
-      this.zones.slice(az, az + 1)
-    }
+    var _this = this
+
+    _this.zones.forEach(function (z, i) {
+      if (z.getName() === az.getName()) {
+        _this.zones.splice(i, i + 1)
+      }
+    })
   }
 
   addSubnet (s, az) {
@@ -44,9 +42,11 @@ module.exports = class RedTop {
   }
 
   delSubnet (s, az) {
-    this.zones.forEach(function (zone) {
+    var _this = this
+    this.zones.forEach(function (zone, i) {
       if (zone.getName() === az.getName()) {
-        zone.delSubnet(s)
+        console.log('found az, calling delSubnet')
+        _this.zones[i].delSubnet(s)
       }
     })
   }
@@ -63,12 +63,15 @@ module.exports = class RedTop {
     })
   }
 
-  delInstance (i, s, az) {
-    this.zones.forEach(function (zone) {
+  delInstance (inst, sn, az) {
+    var _this = this
+    this.zones.forEach(function (zone, i) {
       if (zone.getName() === az.getName()) {
-        zone.subnets.forEach(function (net) {
-          if (net.getNetId() === s.getNetId()) {
-            net.delInstance(i)
+        console.log('zone found in delInstance')
+        zone.subnets.forEach(function (net, j) {
+          if (net.getNetId() === sn.getNetId()) {
+            console.log('subnet found in zone, calling delInstance on subnet')
+            _this.zones[i].subnets[j].delInstance(inst)
           }
         })
       }
@@ -91,14 +94,15 @@ module.exports = class RedTop {
     })
   }
 
-  delNode (n, i, s, az) {
-    this.zones.forEach(function (zone) {
+  delNode (node, inst, sn, az) {
+    var _this = this
+    this.zones.forEach(function (zone, i) {
       if (zone.getName() === az.getName()) {
-        zone.subnets.forEach(function (net) {
-          if (net.getNetId() === s.getNetId()) {
-            net.instances.forEach(function (inst) {
-              if (inst.getId() === i.getId()) {
-                inst.delNode(n)
+        zone.subnets.forEach(function (net, j) {
+          if (net.getNetId() === sn.getNetId()) {
+            net.instances.forEach(function (instance, k) {
+              if (instance.getId() === inst.getId()) {
+                _this.zones[i].subnets[j].instances[k].delNode(node)
               }
             })
           }
