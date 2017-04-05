@@ -8,12 +8,17 @@ module.exports = class ClusterManager {
   }
 
   addToken (vpcId, socket) {
+    var success = false
     if (this._isUnique(vpcId)) {
       var c = new ClusterToken(vpcId, socket)
       this.tokens.push(c)
+      success = true
     } else {
       this.getToken(vpcId).addSubscriber(socket)
+      success = true
     }
+
+    return success
   }
 
   // Delete the token identified by the given ClientID.

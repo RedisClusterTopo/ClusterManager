@@ -56,7 +56,9 @@ io.on('connection', function (socket) {
     // Register a user trying to log in normally
     socket.on('subscribe', function (vpcId) {
       // Add the subscribing client to the clusterManager
-      clusterManager.addToken(vpcId, socket)
+      if (!clusterManager.addToken(vpcId, socket)) {
+        socket.emit('client not found', null)
+      }
     })
 
     // Remove the socket from its corresponding ClusterToken if subscribed
