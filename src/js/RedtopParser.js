@@ -47,7 +47,6 @@ module.exports = class RedtopParser {
         }
       })
     })
-
     cb(nodeInfo)
   }
 
@@ -100,7 +99,7 @@ module.exports = class RedtopParser {
     })
 
     // append cluster nodes
-    redisInfo.nodes.master.forEach(function (master, index) {
+    redisInfo.nodes.masters.forEach(function (master, index) {
       var newMaster = new ClusterNode()
 
       newMaster.setHost(master.ip)

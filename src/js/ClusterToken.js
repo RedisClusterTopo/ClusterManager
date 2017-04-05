@@ -57,15 +57,17 @@ module.exports = class ClusterToken {
 
   // Use the instantiated ioredis commander to collect an aggregate of Redis Cluster info for parsing
   queryRedis (cb) {
-    if (this.cluster_commander.cluster.status.toUpperCase() !== 'READY') cb()
-    var _this = this
-    _this.cluster_commander.getNodes(function (nodes) {
-      _this.redisData.nodes = nodes
-      _this.cluster_commander.getClusterInfo(function (info) {
-        _this.redisData.info = info
-        cb()
+    if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
+      var _this = this
+      _this.cluster_commander.getNodes(function (nodes) {
+        _this.redisData.nodes = nodes
+        _this.cluster_commander.getClusterInfo(function (info) {
+          _this.redisData.info = info
+
+          cb()
+        })
       })
-    })
+    }
   }
 
   // Orchestrate information collection / parsing for info to be pushed to clients
@@ -78,23 +80,27 @@ module.exports = class ClusterToken {
         if (_this.cluster_commander == null) {
           _this.parser.parseNodesByInstanceInfo(_this.ec2data, function (taggedNodes) {
             _this.initCommander(taggedNodes, function () {
-              _this.queryRedis(function () {
-                _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
-                  _this.subscribers.forEach(function (sub) {
-                    sub.emit('update', clusterReport)
+	      if (_this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
+                _this.queryRedis(function () {
+                  _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
+                    _this.subscribers.forEach(function (sub) {
+                      sub.emit('update', clusterReport)
+                    })
                   })
-                })
-              })
+	        })
+              }
             })
           })
         } else {
-          _this.queryRedis(function () {
-            _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
-              _this.subscribers.forEach(function (sub) {
-                sub.emit('update', clusterReport)
+	  if (_this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
+            _this.queryRedis(function () {
+              _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
+                _this.subscribers.forEach(function (sub) {
+                  sub.emit('update', clusterReport)
+                })
               })
             })
-          })
+	  }
         }
 
 

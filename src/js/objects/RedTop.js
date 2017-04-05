@@ -45,7 +45,6 @@ module.exports = class RedTop {
     var _this = this
     this.zones.forEach(function (zone, i) {
       if (zone.getName() === az.getName()) {
-        console.log('found az, calling delSubnet')
         _this.zones[i].delSubnet(s)
       }
     })
@@ -67,10 +66,8 @@ module.exports = class RedTop {
     var _this = this
     this.zones.forEach(function (zone, i) {
       if (zone.getName() === az.getName()) {
-        console.log('zone found in delInstance')
         zone.subnets.forEach(function (net, j) {
           if (net.getNetId() === sn.getNetId()) {
-            console.log('subnet found in zone, calling delInstance on subnet')
             _this.zones[i].subnets[j].delInstance(inst)
           }
         })
