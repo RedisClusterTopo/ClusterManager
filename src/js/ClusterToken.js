@@ -21,6 +21,7 @@ module.exports = class ClusterToken {
     this.cluster_commander = null
     this.ec2data = null
     this.redisData = {}
+    this.failFlags = []
     this.parser = new RedtopParser()
     this.updater = null // The setInterval function responsible for calling ioredis and EC2 queries
 
@@ -58,17 +59,41 @@ module.exports = class ClusterToken {
   // Use the instantiated ioredis commander to collect an aggregate of Redis Cluster info for parsing
   queryRedis (cb) {
     var _this = this
-
     // TODO: expose a single function in ClusterCmdManager to get the necessary
     // aggregate of ioredis information to be passed to the parser
+    //console.log("querying redis")
     _this.cluster_commander.getNodes(function (nodes) {
-      _this.redisData.nodes = nodes
-      _this.cluster_commander.getClusterInfo(function (info) {
-        _this.redisData.info = info
-        cb()
+        _this.redisData.nodes = nodes
+        //go through each node returned from ioredis in order to interrograte each one of them
+        var eNodes;
+        _this.failFlags = []
+        nodes.masters.forEach(function(node,i){
+              eNodes = node
+              //console.log("the current master node" + node.id)
+              //console.log("slave count: " + eNodes.slaves.length)
+              _this.cluster_commander.getClusterInfo(eNodes,function (ff) {
+                ff = Array.from(ff)
+                    console.log("type of slaves" +typeof(ff))
+                    _this.failFlags.push(ff)
+                    eNodes.slaves.forEach(function(slave){
+                          _this.cluster_commander.getClusterInfo(slave,function (ff) {
+                              ff = Array.from(ff)
+                              console.log("type of slaves" +typeof(ff))
+                              _this.failFlags.push(ff)
+
+                          })
+                    })
+                    if(i===nodes.masters.length-1)
+                    {
+
+                        //console.log("finished querying")
+                        cb()
+                    }
+                })
+              //console.log("I: " + i + "node masters length: " + nodes.masters.length-1)
+        })
       })
-    })
-  }
+    }
 
   // Orchestrate information collection / parsing to be pushed to clients
   // TODO: store the timeout function in a location so that it can be cleared later
@@ -80,22 +105,24 @@ module.exports = class ClusterToken {
           // Build an object containing:
           //  - the redtop object
           //  - state failures
-          var clusterReport = _this.parser.parse(_this.ec2data, _this.redisData, false)
-          _this.subscribers.forEach(function (sub) {
-            sub.emit('update', clusterReport)
+          console.log("done with ioredis ")
+          _this.parser.parse(_this.ec2data, _this.redisData,_this.failFlags, false,function(result){
+              var clusterReport = result
+              this.subscribers.forEach(function (sub) {
+                    sub.emit('update', clusterReport)
+              })
           })
         })
       })
     }, 5000)
   }
-
   // Use mode == 1 to access a local cluster
   // else use mode == 0 (get host:port from ec2data tags)
   // NOTE: REDTOP ClusterNodes ARE CREATED FROM EC2 TAGS WHEN CALLING THIS FUNCTION
   initCommander (redtop) {
     var nodes = []
     if (redtop === 'local') {
-      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '30001']]) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '7000']]) // Connect to local cluster
     } else if (redtop) {
       redtop.getNodes().forEach(function (node) {
         nodes.push([node.port, node.host])
@@ -135,12 +162,14 @@ module.exports = class ClusterToken {
               }]
             }]
         }
-
-        var clusterState = _this.parser.parse(r, _this.redisData, true)
-
-        // console.log(clusterState.redtop)
-
-        socket.emit('update', clusterState)
+        console.log("about to parse some redis data")
+        _this.parser.parse(r, _this.redisData,_this.failFlags, true,function(result){
+            var clusterReport = result
+            console.log("finsihed parsing")
+            _this.subscribers.forEach(function (sub) {
+                  sub.emit('update', clusterReport)
+            })
+        })
       })
     }, 5000)
   }
@@ -155,7 +184,10 @@ module.exports = class ClusterToken {
 
     return unique
   }
-
+  addFailFlag(ff)
+  {
+      this.failFlags.push(ff)
+  }
   setEC2Data (d) {
     this.ec2data = d
   }

@@ -10,6 +10,10 @@ module.exports = class ClusterNode {
     this.id = null    // ID of the node *NEW used to link masters/slaves
     this.replicates = null  // The master this node replicates if this.role == slave
     this.hash = [] // Array of objects with start and end hash slots to handle
+    this.failFlags = []
+    this.pfail = null
+    this.state = null
+    this.knownNodes = null
     // Nodes which serve a non-contiguous hash range
     this.slaves = []  // Array of slave ClusterNode objects associated with this
                       // if this this.role == master

@@ -38,6 +38,7 @@ module.exports = class ClusterCmdManager {
           ip: null,
           port: null,
           id: null,
+          failFlags:[],
           slaves: []
         }
 
@@ -56,7 +57,6 @@ module.exports = class ClusterCmdManager {
             n.slaves.push(newSlave)
           }
         })
-
         returnVal.masters.push(n)
       })
 
@@ -65,33 +65,55 @@ module.exports = class ClusterCmdManager {
     this.cluster.sendCommand(slots)
   }
 
-  getErrorFlags (cluster) {
-    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS',id], 'utf8', function (err, result) {
-        result.forEach(function(flag){
-          console.log(flag)
-        })
+  //not sure that we will need this
+  getErrorFlags (node, eNodes, cb) {
+    var curNode = node;
+    var nodeInstance = new Redis(node.port, node.ip)
+    console.log(nodeInstance)
+    eNodes.forEach(function(n){
+      if(curNode.id !=n.id){
+          console.log(n.id)
+            var masterFails = new Commander('cluster', ['COUNT-FAILURE-REPORTS',n.id], 'utf8', function (err, result) {
+                if (err) console.log(err)
+                curNode.failFlags.push(n.id,result)
+                console.log( node.id + " " +n.id+ " " + result)
+                cb();
+            })
+            nodeInstance.sendCommand(masterFails)
+      }
     })
   }
 
-  getClusterInfo (cb) {
-    var clusterInfo = new Commander('cluster', ['info'], 'utf8', function (err, result) {
+  getClusterInfo (node,cb) {
+    var curNode = node
+    var nodeInstance = new Redis(curNode.port, curNode.ip)
+    var clusterInfo = new Commander('cluster', ['nodes'], 'utf8', function (err, result) {
       if (err) console.log(err)
-      /* the object returned from this call:
-      0: cluster state
-      1: assigned cluster slots
-      2: cluster slots status
-      3: cluster slots pfail
-      4: cluster slots fail
-      5: cluster known nodes
-      6: cluster size
-      7: cluster epoch
-      8: messages sent
-      9: messages recieved
-      */
-      // console.log('Cluster Info Result: ' + result)
-      cb(result)
+      var failFlags=[];
+      var r = result.toString("utf8").split(" ")
+      var count = 0
+      for (var i=0;i<r.length;i++)
+      {
+            var nID;
+            if(i<3){
+              nID = r[0]
+            }
+            else{
+              nID = r[i-2].split("\n")[1]
+            }
+            if(r[i].includes("fail?"))
+            {
+                failFlags.push([curNode.id,"fail?",nID])
+            }
+            else if(r[i].includes("fail"))
+            {
+              failFlags.push([curNode.id,"fail",nID])
+            }
+      }
+      //console.log("fail flags list:" +failFlags)
+      cb(Array.from(failFlags))
     })
-    this.cluster.sendCommand(clusterInfo)
+    nodeInstance.sendCommand(clusterInfo)
   }
   // for testing purposes
   getCommands () {
