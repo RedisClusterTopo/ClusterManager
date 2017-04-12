@@ -6,8 +6,14 @@ var Commander = require('ioredis').Command
 // This call will contain the functionality to get information from a rediis cluster
 module.exports = class ClusterCmdManager {
   constructor (nodes) {
-    this.cluster = new Redis.Cluster(nodes[0])
+    this.cluster = new Redis.Cluster(nodes)
     this._registerListeners()
+
+    var retry = 5
+    while (retry > 0) {
+
+      retry--
+    }
   }
 
   // Set up handlers for ioredis connection
@@ -15,23 +21,25 @@ module.exports = class ClusterCmdManager {
     var _this = this
 
     _this.cluster.on('ready', function () {
+     // console.log('ioredis ready')
     })
 
-    _this.cluster.on('err', function (err) {
-      console.log(err)
+    _this.cluster.on('error', function (err) {
+      console.log('ioredis failure: ' + err)
     })
   }
 
   // Cluster slots commands retuns the hash range for the entire cluster as well as node ids
   getNodes (cb) {
-    var slots = new Commander('cluster', ['slots'], 'utf8', function (err, result) {
-      var returnVal = {
+    var nodeInfo = new Commander('cluster', ['nodes'], 'utf8', function (err, result) {
+      if (err) console.log(err)
+      var returnVal ={
         masters: []
       }
-
-      if (err) console.log(err)
-
-      result.forEach(function (masterNode) {
+      var r = result.toString("utf8").split(" ")
+      var count = 0
+      for (var i=0;i<r.length;i++)
+      {
         var n = {
           lowerHash: null,
           upperHash: null,
@@ -41,30 +49,81 @@ module.exports = class ClusterCmdManager {
           failFlags:[],
           slaves: []
         }
-
-        masterNode.forEach(function (val, i) {
-          if (i === 0) n.lowerHash = val
-          else if (i === 1) n.upperHash = val
-          else if (i === 2) {
-            n.ip = '' + val[0]
-            n.port = val[1]
-            n.id = '' + val[2]
-          } else {
-            var newSlave = {}
-            newSlave.ip = '' + val[0]
-            newSlave.port = val[1]
-            newSlave.id = '' + val[2]
-            n.slaves.push(newSlave)
+          if(r[i].includes("master"))//always checking for masters
+          {
+                if(i<6)
+                {
+                  var ipNode = r[1].toString("utf8").split(":")
+                  //0 is id
+                  //1 is ip and port
+                  //2 slave or master
+                      //if slave find the master and attach it
+                      n.id = r[0]
+                      n.ip = ipNode[0]
+                      n.port = ipNode[1]
+                  if(r[i+6].includes("-"))
+                  {
+                      var hSlots = r[i].split("\n")[0].split("-")//split the next node id off of the slots, and then split the slots
+                      n.lowerHash = hSlots[0]
+                      n.upperHash = hSlots[1]
+                  }
+                }
+                else
+                {
+                  //node id = curposition -2 and split off of newline
+                  //ip/port cur position -1
+                  var ipNode = r[i-1].toString("utf8").split(":")
+                  n.id = r[i-2].split("\n")[1]
+                  n.ip  = ipNode[0]
+                  n.port  = ipNode[1]
+                  if(r[i+6].includes("-"))
+                  {
+                      var hSlots = r[i+6].split("\n")[0].split("-")//split the next node id off of the slots, and then split the slots
+                      n.lowerHash = hSlots[0]
+                      n.upperHash = hSlots[1]
+                  }
+                }
+                returnVal.masters.push(n)
           }
-        })
-        returnVal.masters.push(n)
-      })
-
+      }
+      for (var i=0;i<r.length;i++)
+      {
+        var sn = {
+          ip: null,
+          port: null,
+          id: null,
+        }
+        if(r[i].includes("slave"))//always checking for masters
+        {
+          if(i<6)
+          {
+            var ipNode = r[1].toString("utf8").split(":")
+                sn.id = r[0]
+                sn.ip = ipNode[0]
+                sn.port = ipNode[1]
+          }
+          else
+          {
+            var ipNode = r[i-1].toString("utf8").split(":")
+            sn.id = r[i-2].split("\n")[1]
+            sn.ip  = ipNode[0]
+            sn.port  = ipNode[1]
+          }
+          //console.log(returnVal)
+          returnVal.masters.forEach(function(master)
+          {
+            console.log("finding masters. masterid: " + master.id + "  slaveid: " + sn.id)
+            if(master.id == r[i+1])
+            {
+              master.slaves.push(sn)
+            }
+          })
+        }
+      }
       cb(returnVal)
     })
-    this.cluster.sendCommand(slots)
+    this.cluster.sendCommand(nodeInfo)
   }
-
   //not sure that we will need this
   getErrorFlags (node, eNodes, cb) {
     var curNode = node;
@@ -94,6 +153,7 @@ module.exports = class ClusterCmdManager {
       var count = 0
       for (var i=0;i<r.length;i++)
       {
+        //console.log("cluster nodes result: "+ i+ " " + r[i] + "\n")
             var nID;
             if(i<3){
               nID = r[0]

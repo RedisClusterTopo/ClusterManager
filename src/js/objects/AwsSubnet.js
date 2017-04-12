@@ -17,15 +17,13 @@ module.exports = class AwsSubnet {
   }
 
   delInstance (i) {
-    if (typeof (i) === 'string') {
-      this.instances.forEach(function (inst, index) {
-        if (inst.getId() === i.getId()) {
-          this.instances.slice(index, index + 1)
-        }
-      })
-    } else if (typeof (i) === 'number') {
-      this.instances.slice(i, i + 1)
-    }
+    var _this = this
+
+    this.instances.forEach(function (inst, index) {
+      if (inst.getId() === i.getId()) {
+        _this.instances.splice(index, index + 1)
+      }
+    })
   }
 
   setNetID (i) {

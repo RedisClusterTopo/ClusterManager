@@ -43,28 +43,29 @@ var clusterManager = new ClusterManager()
 io.on('connection', function (socket) {
   // Guards for random and localCluster clients connecting to login screen
   if (localCluster) {
-    socket.emit('local cluster', null)  // Alert the client to draw only 1 instance
     socket.on('subscribe', function () {
-      clusterManager.addToken({key: 'local', val: 'cluster'}, socket)
+      clusterManager.addToken('local', socket)
     })
 
     return
   } else if (random) {
     socket.emit('generate random', null) // Forward the client from login to index to generate a random cluster
+
     return
-  }
-
-  // Register a user trying to log in normally
-  socket.on('subscribe', function (clientID) {
-    // Add the subscribing client to the clusterManager
-    clusterManager.addToken(clientID, socket, function (newClient) {
+  } else {
+    // Register a user trying to log in normally
+    socket.on('subscribe', function (vpcId) {
+      // Add the subscribing client to the clusterManager
+      if (!clusterManager.addToken(vpcId, socket)) {
+        socket.emit('client not found', null)
+      }
     })
-  })
 
-  // Remove the socket from its corresponding ClusterToken if subscribed
-  socket.on('unsubscribe', function (clientID) {
-    clusterManager.getToken(clientID).delSubscriber(socket)
-  })
+    // Remove the socket from its corresponding ClusterToken if subscribed
+    socket.on('unsubscribe', function (clientID) {
+      clusterManager.getToken(clientID).delSubscriber(socket)
+    })
+  }
 })
 
 // Handle async requests for updates on a cluster

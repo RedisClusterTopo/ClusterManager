@@ -13,10 +13,10 @@ var RedtopParser = require('./RedtopParser.js')
 
 module.exports = class ClusterToken {
 
-  constructor (k, v, socket) {
-    this.clusterID = {key: k, val: v}
+  constructor (vpcId, socket) {
+    var _this = this
+    this.clusterID = vpcId
     this.subscribers = [] // Contains a list of sockets subscribed to updates from this cluster
-    this.nodes = null
     this.queryManager = new QueryManager()
     this.cluster_commander = null
     this.ec2data = null
@@ -26,10 +26,22 @@ module.exports = class ClusterToken {
     this.updater = null // The setInterval function responsible for calling ioredis and EC2 queries
 
     // Check key/val of new connection for dev configuration
-    if (k === 'local' && v === 'cluster') {
+    if (vpcId === 'local') {
       this._initLocal(this, socket)
     } else {
-      this.updater = this._update(5000) // Update and push to all sockets every 5 seonds
+      this.addSubscriber(socket)
+      // set up the initial ioredis object
+      _this.queryEC2(function () {
+        _this.parser.parseNodesByInstanceInfo(_this.ec2data, function (taggedNodes) {
+          _this.initCommander(taggedNodes, function (connected) {
+            if (connected) _this.updater = _this.update(5000)
+            else {
+              // TODO emit an error (it has been 10s with out ioredis emitting 'ready')
+              console.log('10s have passed since attempting ioredis connection')
+            }
+          })
+        })
+      })
     }
   }
 
@@ -43,15 +55,15 @@ module.exports = class ClusterToken {
   // Remove a subscriber to the cluster represented by this token
   delSubscriber (socket) {
     this.subscibers.forEach(function (sub) {
-      console.log(sub)
+      // console.log(sub)
     })
   }
 
   // Gather a collection of ec2 informations for all ec2 resources hosting the cluster
   queryEC2 (cb) {
     var _this = this
-    this.queryManager.getInstancesByTag(this.clusterID, function (d) {
-      _this.setEC2Data(d)
+    this.queryManager.getInstanceInfoByVpc(this.clusterID, function (data) {
+      _this.setEC2Data(data)
       cb()
     })
   }
@@ -62,17 +74,18 @@ module.exports = class ClusterToken {
     // TODO: expose a single function in ClusterCmdManager to get the necessary
     // aggregate of ioredis information to be passed to the parser
     //console.log("querying redis")
-    _this.cluster_commander.getNodes(function (nodes) {
-        _this.redisData.nodes = nodes
-        //go through each node returned from ioredis in order to interrograte each one of them
-        var eNodes;
-        _this.failFlags = []
-        nodes.masters.forEach(function(node,i){
-              eNodes = node
-              //console.log("the current master node" + node.id)
-              //console.log("slave count: " + eNodes.slaves.length)
-              _this.cluster_commander.getClusterInfo(eNodes,function (ff) {
-                ff = Array.from(ff)
+      if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
+          _this.cluster_commander.getNodes(function (nodes) {
+            _this.redisData.nodes = nodes
+            //go through each node returned from ioredis in order to interrograte each one of them
+            var eNodes;
+            _this.failFlags = []
+            nodes.masters.forEach(function(node,i){
+                eNodes = node
+                //console.log("the current master node" + node.id)
+                //console.log("slave count: " + eNodes.slaves.length)
+                _this.cluster_commander.getClusterInfo(eNodes,function (ff) {
+                    ff = Array.from(ff)
                     console.log("type of slaves" +typeof(ff))
                     _this.failFlags.push(ff)
                     eNodes.slaves.forEach(function(slave){
@@ -94,11 +107,13 @@ module.exports = class ClusterToken {
         })
       })
     }
+  }
 
-  // Orchestrate information collection / parsing to be pushed to clients
+  // Orchestrate information collection / parsing for info to be pushed to clients
   // TODO: store the timeout function in a location so that it can be cleared later
   _update (timeout) {
     var _this = this
+
     return setInterval(function () {
       _this.queryEC2(function () {
         _this.queryRedis(function () {
@@ -114,71 +129,91 @@ module.exports = class ClusterToken {
           })
         })
       })
-    }, 5000)
+    })
   }
-  // Use mode == 1 to access a local cluster
-  // else use mode == 0 (get host:port from ec2data tags)
-  // NOTE: REDTOP ClusterNodes ARE CREATED FROM EC2 TAGS WHEN CALLING THIS FUNCTION
-  initCommander (redtop) {
-    var nodes = []
-    if (redtop === 'local') {
-      this.cluster_commander = new ClusterCmdManager([['127.0.0.1', '7000']]) // Connect to local cluster
-    } else if (redtop) {
-      redtop.getNodes().forEach(function (node) {
-        nodes.push([node.port, node.host])
-      })
 
+  // Input: An array containing ip/port information for a list of cluster nodes
+  // contained in a 2 element array
+  // Output: initalizes the cluster_commander class object
+  initCommander (nodes, cb) {
+    var _this = this
+    var returned = false
+
+
+    if (nodes === 'local') {
+      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '7000']) // Connect to local cluster
+    } else if (nodes) {
       if (nodes.length >= 1) {
         this.cluster_commander = new ClusterCmdManager(nodes)
       } else {
-        console.log('Error initializing ClusterCmdManager of ' + this.clusterID.key + ':' + this.clusterID.val + ': no node tags in EC2 data')
+        console.log('Error initializing ClusterCmdManager of ' + this.clusterID + ': no nodes in list')
       }
     } else {
-      console.log('Error initializing ClusterCmdManager ' + this.clusterID.key + ':' + this.clusterID.val + ': no ec2data')
+      console.log('Error initializing ClusterCmdManager ' + this.clusterID + ': no list of nodes')
     }
+
+    _this.cluster_commander.cluster.on('ready', function () {
+      if (!returned) cb(true)
+    })
+
+    setTimeout(function () {
+      if (_this.cluster_commander.cluster.status.toUpperCase() !== 'READY') {
+        cb(false)
+        returned = true
+      }
+    }, 20000)
   }
 
   // Setup for testing local cluster in development configuration
   _initLocal (_this, socket) {
-    _this.initCommander('local')
-
-    setInterval(function () {
-      _this.queryRedis(function () {
-        var r = {
-          type: 'Root',
-          zones: [
-            {
-              name: 'Local AZ',
-              type: 'Availability Zone',
-              subnets: [{
-                netid: 'Local Subnet',
-                type: 'Subnet',
-                instances: [{
-                  id: 'Local Instance',
-                  ip: '127.0.0.1',
-                  type: 'EC2 Instance',
-                  nodes: []
+    console.log("init commander")
+    _this.initCommander('local', function () {
+      setInterval(function () {
+        console.log("about to query redis")
+        _this.queryRedis(function () {
+          var r = {
+            type: 'Root',
+            zones: [
+              {
+                name: 'Local AZ',
+                type: 'Availability Zone',
+                subnets: [{
+                  netid: 'Local Subnet',
+                  type: 'Subnet',
+                  instances: [{
+                    id: 'Local Instance',
+                    ip: '127.0.0.1',
+                    type: 'EC2 Instance',
+                    nodes: []
+                  }]
                 }]
               }]
-            }]
-        }
+            }
         console.log("about to parse some redis data")
-        _this.parser.parse(r, _this.redisData,_this.failFlags, true,function(result){
-            var clusterReport = result
-            console.log("finsihed parsing")
-            _this.subscribers.forEach(function (sub) {
-                  sub.emit('update', clusterReport)
-            })
+
+          _this.parser.parse(r, _this.redisData,_this.failFlags, true, function (clusterState) {
+            socket.emit('update', clusterState)
+          })
         })
-      })
-    }, 5000)
+      }, 5000)
+    })
   }
+    //     _this.parser.parse(r, _this.redisData,_this.failFlags, true,function(result){
+    //         var clusterReport = result
+    //         console.log("finsihed parsing")
+    //         _this.subscribers.forEach(function (sub) {
+    //               sub.emit('update', clusterReport)
+    //         })
+    //     })
+    //   })
+    // }, 5000)
+    // }
 
   // Check to see if a socket.io connection is already subscribed to the token
   _isUniqueSocket (socket) {
     var unique = true
 
-    this.connections.forEach(function (conn) {
+    this.subscribers.forEach(function (conn) {
       if (socket.id === conn.id) unique = false
     })
 

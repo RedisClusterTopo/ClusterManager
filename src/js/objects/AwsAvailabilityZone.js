@@ -15,15 +15,13 @@ module.exports = class AwsAvailabilityZone {
   }
 
   delSubnet (s) {
-    if (typeof (s) === 'string') {
-      this.subnets.forEach(function (sn, i) {
-        if (s.getNetId() === sn.getNetId()) {
-          this.subnets.slice(i, i + 1)
-        }
-      })
-    } else if (typeof (s) === 'number') {
-      this.subnets.slice(s, s + 1)
-    }
+    var _this = this
+
+    this.subnets.forEach(function (sn, i) {
+      if (s.getNetId() === sn.getNetId()) {
+        _this.subnets.splice(i, i + 1)
+      }
+    })
   }
 
   setName (n) {
