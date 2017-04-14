@@ -95,6 +95,7 @@ module.exports = class ClusterCmdManager {
         }
         if(r[i].includes("slave"))//always checking for masters
         {
+          //console.log("found a slave")
           if(i<6)
           {
             var ipNode = r[1].toString("utf8").split(":")
@@ -105,21 +106,25 @@ module.exports = class ClusterCmdManager {
           else
           {
             var ipNode = r[i-1].toString("utf8").split(":")
+            //console.log("slave information\n" + " id: " +r[i-2].split("\n")[1] + "\n"+ " ip: " +ipNode[0] + "\n"+ " port: " +ipNode[1])
             sn.id = r[i-2].split("\n")[1]
             sn.ip  = ipNode[0]
             sn.port  = ipNode[1]
           }
-          //console.log(returnVal)
+          var count = 0
           returnVal.masters.forEach(function(master)
           {
-            console.log("finding masters. masterid: " + master.id + "  slaveid: " + sn.id)
-            if(master.id == r[i+1])
+            //console.log("finding masters. masterid: " + master.id + "  slaves master: " + r[i+1])
+            if(master.id.toString("utf8") == r[i+1].toString("utf8"))
             {
-              master.slaves.push(sn)
+                //console.log("current slave value: "+ JSON.stringify(sn))
+                master.slaves.push(sn)
             }
+            count++
           })
         }
       }
+      //console.log(JSON.stringify(returnVal))
       cb(returnVal)
     })
     this.cluster.sendCommand(nodeInfo)
@@ -145,6 +150,7 @@ module.exports = class ClusterCmdManager {
 
   getClusterInfo (node,cb) {
     var curNode = node
+    //console.log(curNode.port +"_"+ curNode.ip)
     var nodeInstance = new Redis(curNode.port, curNode.ip)
     var clusterInfo = new Commander('cluster', ['nodes'], 'utf8', function (err, result) {
       if (err) console.log(err)

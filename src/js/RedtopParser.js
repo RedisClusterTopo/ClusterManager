@@ -14,7 +14,8 @@ module.exports = class RedtopParser {
       stateErrors: null, // A list of possible errors in the cluster and the associated nodes
       failFlags: null,//split brain information
       pfailFlags: null,//split brain information
-      splitBrain: 0//boolean flag to determine split brain
+      sbContainer: [],
+      sb: 0//boolean flag to determine split brain
     }
 
     if (local) {
@@ -23,12 +24,13 @@ module.exports = class RedtopParser {
         clusterState.redtop = rt
       _this._evalClusterState(clusterState.redtop, function (errors) {
         clusterState.stateErrors = errors
-        _this._checkSplitBrain(failFlags,function(ff,pff,sb)
+        _this._checkSplitBrain(failFlags,function(sbList, sb)//returns an array of split brain objects
         {
-          clusterState.failFlags = ff
-          clusterState.pfailFlags = pff
-          clusterState.splitBrain = sb
-          console.log("cluster state has been evaluated")
+          clusterState.sbContainer = sbList.splice(0)
+          clusterState.sb = sb
+          clusterState.sbContainer.forEach(function(container){
+                      console.log("cluster state has been evaluated \n" + JSON.stringify(container))
+          })
           cb(clusterState)
         })
       })
@@ -219,62 +221,121 @@ module.exports = class RedtopParser {
   _checkSplitBrain(failFlags,cb)
   {
     //console.log("The fail flags array monstrosity" + failFlags[0])
+    var _this = this
     var failFlags = failFlags
-    var ff = []
-    var pff = []
-    var sb = 0
-    var count = 0
-          //console.log("Check split brain " + failFlags.length)
+    var sbMaster = 0;
+    var alreadyDetected = ""  //string that will contain comma seperatedids of nodes already determined to be split
+    var sbList = []
+    var splitBrain =
+    {
+        splitNode : null, //this will be the id of the node that the cluster is in contention over
+        ffList:[],     //this will be a list of nodes that see the split node as failed
+        pfList:[],     //this will be a list of nodes that see the split node as pfailed
+        fineList:[]     //this will be a list of nodes that see the split node as fine
+    }
+    console.log("Check split brain, failflags: \n " + failFlags)
     failFlags.forEach(function(node){
-        //console.log("Failflags: " +failFlags)
-        var countFail = 0;
-        var countpFail = 0;
         var oNode = node
         //console.log("node inside first forEach " + node)
         node.forEach(function(flag){
+          splitBrain =   {
+                splitNode : null, //this will be the id of the node that the cluster is in contention over
+                ffList:[],     //this will be a list of nodes that see the split node as failed
+                pfList:[],     //this will be a list of nodes that see the split node as pfailed
+                fineList:[]     //this will be a list of nodes that see the split node as fine
+            }
           var flag = flag
           var matchFound = 0
+          var sbMaster = 0
+          if( !alreadyDetected.includes(flag[2]))
+          {
           //console.log("2Failflags: " +failFlags)
           //var ifailFlags = ofailFlags;
           failFlags.forEach(function(iNode){
             var iNode = iNode
-             for (var i = 0 ; count<oNode.length; count++)
+            var unFoundFailure = 0//use to determine if there are nodes that disagree on failures
+            var unFoundLocation =0
+            //console.log("Current state of checks, currentflag: \n"+flag +" \n iNodeList: \n"+ iNode)
+             for (var i = 0 ; i<iNode.length; i++)
              {
                 //if nodes have the same node marked as pfail and fail
-                if(flag[0] != iNode[i][0])
+
+                if(flag[0] != iNode[i][0] && flag[2] != iNode[i][0])
                 {
-                    if(flag[2] == iNode[i][2])//failures for the same node
+                  //console.log("flags! \n flag: \n" +flag[0] + " \n iNode \n " + iNode[i] )
+                    if(flag[2] == iNode[i][2])//check for the same node ids, we are looking at the target node here
                     {
-                      if(flag[1].includes("fail?"))
-                      {
-                          pff.push(node)
-                      }
-                      else {
-                        ff.push(node)
-                      }
-                      if(flag[1] != iNode[i][1])//fail flags differ for the same node
-                      {
-                      //  console.log("split brain detected")
-                        sb =1
-                      }
+                          unFoundFailure = 2
+                          //if we have the same node check for matching fail flags
+                          console.log("found the same flag! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
+                          if(flag[1] != iNode[i][1])//the flags are the same, so we add the iNode flag to the
+                          {
+                                //console.log("unequal flags! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
+                                _this.sb =1
+                                sbMaster = 1
+                                if( iNode[i][1].includes("fail?"))
+                                {
+
+                                    splitBrain.pfList.push(iNode[i][0])//push the id of the other node into the list
+                                }
+                                else
+                                {
+                                    splitBrain.ffList.push(iNode[i][0])
+                                }
+                          }
+                          else
+                          {
+                            console.log("flags are equal!\n flag: \n" +flag + " \n iNode \n " + iNode[i] )
+                            //unFoundFailure =2
+                            if(iNode[i][1].includes("fail?"))
+                            {
+                                splitBrain.pfList.push(iNode[i][0])//push the id of the other node into the list
+                            }
+                            else
+                            {
+                                splitBrain.ffList.push(iNode[i][0])
+                            }
+                          }
                     }
-                }
+                    else if(unFoundFailure ==0)
+                    {
+                        //console.log("unfound failure flags! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
+                        unFoundFailure = 1
+                        unFoundLocation = i
+                    }
               }
+              }
+              if(unFoundFailure == 1)//we have finished iterating
+              {
+                  //console.log("unfound flags")
+                  //console.log("Checking the index size: " + i + " checking the curNodelength: " + iNode.length)
+                  _this.sb =1
+                  sbMaster = 1
+                  splitBrain.fineList.push(iNode[unFoundLocation][0])
+                  unFoundFailure = 0
+              }
+
           })
-          if(!matchFound)
+        }
+        if(sbMaster == 1)
+        {
+          console.log("pushing split node information")
+          splitBrain.splitNode = flag[2]
+          if( flag[1].includes("fail?"))
           {
-            //console.log("split brain detected")
-            sb = 1
-            if(flag[1].includes("fail?"))
-            {
-                pff.push(node)
-            }
-            else {
-              ff.push(node)
-            }
+
+              splitBrain.pfList.push(flag[0])//push the id of the other node into the list
           }
+          else
+          {
+              splitBrain.ffList.push(flag[0])
+          }
+          sbList.push(splitBrain)
+          alreadyDetected +=  ", " + flag[2]
+          sbMaster = 0
+        }
         })
     })
-    cb(ff,pff,sb)
+    cb(sbList,_this.sb)
   }
 }

@@ -74,6 +74,7 @@ module.exports = class ClusterToken {
     // TODO: expose a single function in ClusterCmdManager to get the necessary
     // aggregate of ioredis information to be passed to the parser
     //console.log("querying redis")
+    var i =0, j=0
       if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
           _this.cluster_commander.getNodes(function (nodes) {
             _this.redisData.nodes = nodes
@@ -82,30 +83,31 @@ module.exports = class ClusterToken {
             _this.failFlags = []
             nodes.masters.forEach(function(node,i){
                 eNodes = node
-                //console.log("the current master node" + node.id)
-                //console.log("slave count: " + eNodes.slaves.length)
                 _this.cluster_commander.getClusterInfo(eNodes,function (ff) {
-                    ff = Array.from(ff)
-                    console.log("type of slaves" +typeof(ff))
-                    _this.failFlags.push(ff)
-                    eNodes.slaves.forEach(function(slave){
-                          _this.cluster_commander.getClusterInfo(slave,function (ff) {
-                              ff = Array.from(ff)
-                              console.log("type of slaves" +typeof(ff))
-                              _this.failFlags.push(ff)
+                      ff = Array.from(ff)
+                      console.log("master errors" +JSON.stringify(ff))
+                      _this.failFlags.push(ff)
+                      console.log("slave count: " + eNodes.slaves.length)
+                })
+                eNodes.slaves.forEach(function(slave){
+                      console.log("slave count: " + eNodes.slaves.length)
+                      console.log("the current slave" + JSON.stringify(slave))
+                      _this.cluster_commander.getClusterInfo(slave,function (ff) {
+                            ff = Array.from(ff)
+                            console.log("slave errors" +JSON.stringify(ff))
+                            _this.failFlags.push(ff)
 
-                          })
-                    })
-                    if(i===nodes.masters.length-1)
-                    {
-
-                        //console.log("finished querying")
+                      if(i===nodes.masters.length-1)
+                      {
+                            //console.log("finished querying")
                         cb()
-                    }
+                      }
+                      })
                 })
               //console.log("I: " + i + "node masters length: " + nodes.masters.length-1)
-        })
+          })
       })
+
     }
   }
 
