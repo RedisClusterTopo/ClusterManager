@@ -67,16 +67,37 @@ module.exports = class ClusterToken {
     })
   }
 
-  // Use the instantiated ioredis commander to collect an aggregate of Redis Cluster info for parsing
+  // Use the instantiated ioredis commander to collect a list of "cluster nodes" command returns for all nodes
   queryRedis (cb) {
     if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
       var _this = this
-      _this.cluster_commander.getNodes(function (nodes) {
-        _this.redisData.nodes = nodes
-        _this.cluster_commander.getClusterInfo(function (info) {
-          _this.redisData.info = info
 
-          cb()
+      _this.cluster_commander.getNodesList(function (nodes) {
+        var nodeResponses = {
+          masters: [],
+          slaves: [],
+          failed: []
+        }
+
+        nodes.forEach(function (curNode, index) {
+          var cmdManager = new ClusterCmdManager(curNode.hostPort, function (success) {
+            if (!success) nodeResponses.failed.push(curNode.id)
+
+            cmdManager.getClusterNodes(function (nodesReturnVal) {
+              nodesReturnVal.hostport = cmdManager.cluster.startupNodes
+
+              if (curNode.isMaster) {
+                nodeResponses.masters.push(nodesReturnVal)
+              } else {
+                nodeResponses.slaves.push(nodesReturnVal)
+              }
+
+              if ((nodeResponses.masters.length + nodeResponses.slaves.length + nodeResponses.failed.length) === nodes.length) {
+                _this.redisData = nodeResponses
+                cb()
+              }
+            })
+          })
         })
       })
     }
@@ -106,7 +127,7 @@ module.exports = class ClusterToken {
     var returned = false
 
     if (nodes === 'local') {
-      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '7000']) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '30001']) // Connect to local cluster
     } else if (nodes) {
       if (nodes.length >= 1) {
         this.cluster_commander = new ClusterCmdManager(nodes)
