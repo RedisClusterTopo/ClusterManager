@@ -5,18 +5,35 @@ var Commander = require('ioredis').Command
 
 // This call will contain the functionality to get information from a rediis cluster
 module.exports = class ClusterCmdManager {
-  constructor (nodes, cb) {
-    this.cluster = new Redis.Cluster(nodes)
+  constructor (nodes, useCluster, cb) {
+    if (useCluster === true) {
+      this.cluster = new Redis.Cluster(nodes, {enableReadyCheck: false})
+    } else {
+      this.cluster = new Redis(nodes[0], nodes[1])
+    }
     this._registerListeners(cb)
   }
 
   // Set up handlers for ioredis connection
   _registerListeners (cb) {
     var _this = this
-
+    var connectionReturned = false
     _this.cluster.on('ready', function () {
       // console.log('cluster ready')
-      if (cb) cb(true)
+      if (!connectionReturned) {
+        connectionReturned = true
+        if (cb) cb(true)
+      }
+    })
+
+    _this.cluster.on('connect', function () {
+      // console.log(_this.cluster)
+      if (!connectionReturned) {
+        connectionReturned = true
+        // for (var attr in _this.cluster) console.log(attr)
+        console.log(_this.cluster.status)
+        if (cb) cb(true)
+      }
     })
 
     _this.cluster.on('error', function (err) {
@@ -28,7 +45,6 @@ module.exports = class ClusterCmdManager {
   getNodesList (cb) {
     var _this = this
     var nodeList = []
-
     for (var master in _this.cluster.connectionPool.nodes.master) {
       master = master.split(':')
 
@@ -46,7 +62,7 @@ module.exports = class ClusterCmdManager {
       // slave[0] == node host address
       // slave[1] == node port
       nodeList.push({
-        isMaster: false,
+        isMaster: true,
         hostPort: [slave[0], slave[1]]
       })
     }

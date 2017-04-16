@@ -80,11 +80,12 @@ module.exports = class ClusterToken {
         }
 
         nodes.forEach(function (curNode, index) {
-          var cmdManager = new ClusterCmdManager(curNode.hostPort, function (success) {
+          var cmdManager = new ClusterCmdManager(curNode.hostPort, false, function (success) {
             if (!success) nodeResponses.failed.push(curNode.id)
 
             cmdManager.getClusterNodes(function (nodesReturnVal) {
-              nodesReturnVal.hostport = cmdManager.cluster.startupNodes
+              nodesReturnVal.host = curNode.hostPort[0]
+              nodesReturnVal.port = curNode.hostPort[1]
 
               if (curNode.isMaster) {
                 nodeResponses.masters.push(nodesReturnVal)
@@ -127,10 +128,10 @@ module.exports = class ClusterToken {
     var returned = false
 
     if (nodes === 'local') {
-      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '30001']) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '30006'], true) // Connect to local cluster
     } else if (nodes) {
       if (nodes.length >= 1) {
-        this.cluster_commander = new ClusterCmdManager(nodes)
+        this.cluster_commander = new ClusterCmdManager(nodes, true)
       } else {
         console.log('Error initializing ClusterCmdManager of ' + this.clusterID + ': no nodes in list')
       }

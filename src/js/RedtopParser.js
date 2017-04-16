@@ -9,28 +9,137 @@ var ClusterNode = require('./ClusterNode.js')
 module.exports = class RedtopParser {
 
   parse (ec2info, redisInfo, local, cb) {
+    var _this = this
+
     var clusterState = {
       redtop: null,
       stateErrors: null // A list of possible errors in the cluster and the associated nodes
     }
 
-    if (local) {
-      clusterState.redtop = this._parseLocal(ec2info, redisInfo)
+    this.invertClusterNodes(redisInfo, function (invertedNodeView) {
+      if (local) {
+        clusterState.redtop = _this._parseLocal(ec2info, invertedNodeView) // Translate JSON -> redtop
 
-      this._evalClusterState(clusterState.redtop, function (errors) {
-        clusterState.stateErrors = errors
-      })
-    } else {
-      this._parseRedtop(ec2info, redisInfo, function (rt) {
-        clusterState.redtop = rt
-      })
+        _this._evalClusterState(clusterState.redtop, function (errors) {
+          clusterState.stateErrors = errors
+        })
+      } else {
+        _this._parseRedtop(ec2info, redisInfo, function (rt) {
+          clusterState.redtop = rt
+        })
 
-      this._evalClusterState(clusterState.redtop, function (flags) {
-        clusterState.stateErrors = flags
-      })
-    }
+        _this._evalClusterState(clusterState.redtop, function (flags) {
+          clusterState.stateErrors = flags
+        })
+      }
 
-    cb(clusterState)
+      cb(clusterState)
+    })
+  }
+
+  // Take the aggregation of responses to 'cluster nodes' commands for each node in the
+  // cluster and invert to return an object which reports what every other node in the cluster sees
+  // for a given node (rather than what each node thinks about every other node)
+  invertClusterNodes (redisInfo, cb) {
+    /*
+    objects in the outLookingIn array follow this form:
+      {
+        id: the ID of the node being reported on
+        host: the node's host address
+        port: the port over which this node is running
+        normal: a list of IDs which report this node as functioning normally
+        pfail: a list of IDs which report this node as 'fail?'
+        fail: a list of IDs which report this node as 'fail'
+        connecting: a list of IDs which report this node as in 'handshake'
+      }
+    */
+    var outLookingIn = []
+
+    redisInfo.masters.forEach(function (nodeResponse) {
+      nodeResponse.clusterNodes.split('\n').forEach(function (line) {
+        var lineArray = line.split(' ')
+        var curNodeId = lineArray[0] // the current node ID being inspected
+
+        if (curNodeId.length > 0) {
+          var curNodeHost = lineArray[1].split(':')[0]
+          var curNodePort = lineArray[1].split(':')[1].split('@')[0]
+
+          // Add an entry if needed
+          if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
+            outLookingIn.push({
+              id: curNodeId,
+              host: curNodeHost,
+              port: curNodePort,
+              normal: [],
+              pfail: [],
+              fail: [],
+              connecting: []
+            })
+          }
+
+          var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
+          if (curNodeId === curReportedNode.id) console.log('UH OH UH OH UH OH UH OH UH OH UH OH UH OH UH OH UH OH ')
+          // console.log(curNodeId === curReportedNode.id)
+
+          if (curReportedNode != null) {
+            if (line.includes('handshake')) {
+              curReportedNode.connecting.push(nodeResponse.id)
+            } if (line.includes('myself')) {
+              curReportedNode.normal.push(nodeResponse.id)
+            } else if (line.includes('fail?')) {
+              curReportedNode.pfail.push(nodeResponse.id)
+            } else if (line.includes('fail')) {
+              curReportedNode.fail.push(nodeResponse.id)
+            } else {
+              curReportedNode.normal.push(nodeResponse.id)
+            }
+          }
+        }
+      })
+    })
+    redisInfo.slaves.forEach(function (nodeResponse) {
+      nodeResponse.clusterNodes.split('\n').forEach(function (line) {
+        var lineArray = line.split(' ')
+        var curNodeId = lineArray[0] // the current node ID being inspected
+
+        if (curNodeId.length > 0) {
+          var curNodeHost = lineArray[1].split(':')[0]
+          var curNodePort = lineArray[1].split(':')[1].split('@')[0]
+
+          // Add an entry if needed
+          if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
+            outLookingIn.push({
+              id: curNodeId,
+              host: curNodeHost,
+              port: curNodePort,
+              normal: [],
+              pfail: [],
+              fail: [],
+              connecting: []
+            })
+          }
+
+          var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
+          // console.log(curNodeId === curReportedNode.id)
+
+          if (curReportedNode != null) {
+            if (line.includes('handshake')) {
+              curReportedNode.connecting.push(nodeResponse.id)
+            } if (line.includes('myself')) {
+              curReportedNode.normal.push(nodeResponse.id)
+            } else if (line.includes('fail?')) {
+              curReportedNode.pfail.push(nodeResponse.id)
+            } else if (line.includes('fail')) {
+              curReportedNode.fail.push(nodeResponse.id)
+            } else {
+              curReportedNode.normal.push(nodeResponse.id)
+            }
+          }
+        }
+      })
+    })
+
+    cb(outLookingIn)
   }
 
   // Used to collect ip/port info for cluster nodes from instance tags
@@ -169,8 +278,7 @@ module.exports = class RedtopParser {
     cb(redtop)
   }
 
-  _parseLocal (redtop, redisInfo) {
-    if (!redisInfo) return
+  _parseLocal (redtop, invertedNodeView) {
     var t = new RedTop()
     var az = new AwsAvailabilityZone()
     var sn = new AwsSubnet()
@@ -179,27 +287,6 @@ module.exports = class RedtopParser {
     sn.setNetID(redtop.zones[0].subnets[0].netid)
     inst.setId(redtop.zones[0].subnets[0].instances[0].id)
 
-    redisInfo.nodes.masters.forEach(function (master, index) {
-      var newMaster = new ClusterNode()
-      var slavers = []
-      newMaster.setHost(master.ip)
-      newMaster.setPort(master.port)
-      newMaster.setID(master.id)
-      newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
-      newMaster.setRole('Master')
-      master.slaves.forEach(function (slave) {
-        var newSlave = new ClusterNode()
-        newSlave.setHost(slave.ip)
-        newSlave.setPort(slave.port)
-        newSlave.setRole('Slave')
-        newSlave.setID(slave.id)
-        newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
-        newMaster.addSlave(slave.id)
-        newSlave.setReplicates(master.id)
-        inst.addNode(newSlave)
-      })
-      inst.addNode(newMaster)
-    })
     sn.addInstance(inst)
     az.addSubnet(sn)
     t.addAvailabilityZone(az)
