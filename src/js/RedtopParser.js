@@ -8,7 +8,8 @@ var ClusterNode = require('./ClusterNode.js')
 
 module.exports = class RedtopParser {
 
-  parse (ec2info, redisInfo,failFlags, local, cb) {
+  parse (ec2info, redisInfo, local, cb) {
+    var _this = this
     var clusterState = {
       redtop: null,
       stateErrors: null, // A list of possible errors in the cluster and the associated nodes
@@ -17,31 +18,167 @@ module.exports = class RedtopParser {
       sbContainer: [],
       sb: 0//boolean flag to determine split brain
     }
+    this.invertClusterNodes(redisInfo, function (invertedNodeView) {
+      if (local) {
+        _this._parseLocal(ec2info, invertedNodeView,function(rt){
+          clusterState.redtop = rt
+        }) // Translate JSON -> redtop
 
-    if (local) {
-            var _this = this
-      this._parseLocal(ec2info, redisInfo,function(rt){
-        clusterState.redtop = rt
-      _this._evalClusterState(clusterState.redtop, function (errors) {
-        clusterState.stateErrors = errors
-        _this._checkSplitBrain(failFlags,function(sbList, sb)//returns an array of split brain objects
-        {
-          clusterState.sbContainer = sbList.splice(0)
-          clusterState.sb = sb
-          clusterState.sbContainer.forEach(function(container){
-                      console.log("cluster state has been evaluated \n" + JSON.stringify(container))
-          })
-          cb(clusterState)
+        _this._evalClusterState(clusterState.redtop, function (errors) {
+          clusterState.stateErrors = errors
         })
-      })
-      })
-    }
-    else{
-    this._parseRedtop(ec2info, redisInfo, function (rt) {
-      clusterState.redtop = rt
+      } else {
+        _this._parseRedtop(ec2info, redisInfo, function (rt) {
+          clusterState.redtop = rt
+        })
+
+        _this._evalClusterState(clusterState.redtop, function (flags) {
+          clusterState.stateErrors = flags
+        })
+      }
+
+      cb(clusterState)
     })
   }
-}
+
+  // Take the aggregation of responses to 'cluster nodes' commands for each node in the
+  // cluster and invert to return an object which reports what every other node in the cluster sees
+  // for a given node (rather than what each node thinks about every other node)
+  invertClusterNodes (redisInfo, cb) {
+    /*
+    objects in the outLookingIn array follow this form:
+      {
+        id: the ID of the node being reported on
+        host: the node's host address
+        port: the port over which this node is running
+        normal: a list of IDs which report this node as functioning normally
+        pfail: a list of IDs which report this node as 'fail?'
+        fail: a list of IDs which report this node as 'fail'
+        connecting: a list of IDs which report this node as in 'handshake'
+      }
+    */
+    var outLookingIn = []
+    console.log('inverting nodes redis info')
+    console.log(redisInfo)
+    redisInfo.masters.forEach(function (nodeResponse) {
+      console.log('masters')
+      nodeResponse.clusterNodes.split('\n').forEach(function (line) {
+        var lineArray = line.split(' ')
+        var curNodeId = lineArray[0] // the current node ID being inspected
+
+        if (curNodeId.length > 0) {
+          //console.log("inverting stuff masters")
+          //console.log(lineArray)
+          var curNodeHost = lineArray[1].split(':')[0]
+          var curNodePort = lineArray[1].split(':')[1].split('@')[0]
+          var lowerHash = null
+          var upperHash = null
+          var masterNode = null
+          if(lineArray[2].includes('master')){
+            lowerHash = lineArray[8].split('-')[0]
+            upperHash = lineArray[8].split('-')[1]
+          }
+          else{
+            masterNode = lineArray[3]
+          }
+          // }
+          // Add an entry if needed
+          if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
+            outLookingIn.push({
+              id: curNodeId,
+              host: curNodeHost,
+              port: curNodePort,
+              lowerHash: lowerHash,
+              upperHash: upperHash,
+              masterNode: masterNode,
+              normal: [],
+              pfail: [],
+              fail: [],
+              connecting: []
+            })
+          }
+
+          var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
+          if (curNodeId === curReportedNode.id) console.log('UH OH UH OH UH OH UH OH UH OH UH OH UH OH UH OH UH OH ')
+          // console.log(curNodeId === curReportedNode.id)
+
+          if (curReportedNode != null) {
+            if (line.includes('handshake')) {
+              curReportedNode.connecting.push(nodeResponse.id)
+            } if (line.includes('myself')) {
+              curReportedNode.normal.push(nodeResponse.id)
+            } else if (line.includes('fail?')) {
+              curReportedNode.pfail.push(nodeResponse.id)
+            } else if (line.includes('fail')) {
+              curReportedNode.fail.push(nodeResponse.id)
+            } else {
+              curReportedNode.normal.push(nodeResponse.id)
+            }
+          }
+        }
+      })
+    })
+    redisInfo.slaves.forEach(function (nodeResponse) {
+      console.log('slaves')
+      nodeResponse.clusterNodes.split('\n').forEach(function (line) {
+        //console.log("inverting stuff slaves")
+        //console.log(lineArray)
+        var lineArray = line.split(' ')
+        var curNodeId = lineArray[0] // the current node ID being inspected
+
+        if (curNodeId.length > 0) {
+          var curNodeHost = lineArray[1].split(':')[0]
+          var curNodePort = lineArray[1].split(':')[1].split('@')[0]
+          var lowerHash = null
+          var upperHash = null
+          var masterNode = null
+          if(lineArray[2].includes('master')){
+            lowerHash = lineArray[8].split('-')[0]
+            upperHash = lineArray[8].split('-')[1]
+          }
+          else{
+            masterNode = lineArray[3]
+          }
+          // Add an entry if needed
+          if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
+            outLookingIn.push({
+              id: curNodeId,
+              host: curNodeHost,
+              port: curNodePort,
+              lowerHash: lowerHash,
+              upperHash: upperHash,
+              masterNode: masterNode,
+              normal: [],
+              pfail: [],
+              fail: [],
+              connecting: []
+            })
+          }
+
+          var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
+          // console.log(curNodeId === curReportedNode.id)
+
+          if (curReportedNode != null) {
+            if (line.includes('handshake')) {
+              curReportedNode.connecting.push(nodeResponse.id)
+            } if (line.includes('myself')) {
+              curReportedNode.normal.push(nodeResponse.id)
+            } else if (line.includes('fail?')) {
+              curReportedNode.pfail.push(nodeResponse.id)
+            } else if (line.includes('fail')) {
+              curReportedNode.fail.push(nodeResponse.id)
+            } else {
+              curReportedNode.normal.push(nodeResponse.id)
+            }
+          }
+        }
+      })
+    })
+    //console.log(outLookingIn.length)
+    //console.log(outLookingIn)
+    cb(outLookingIn)
+  }
+
   // Used to collect ip/port info for cluster nodes from instance tags
   // Input: an array of ec2info
   parseNodesByInstanceInfo (ec2info, cb) {
@@ -178,8 +315,8 @@ module.exports = class RedtopParser {
     cb(redtop)
   }
 
-  _parseLocal (redtop, redisInfo, cb) {
-    if (!redisInfo) return
+  _parseLocal (redtop, invertedNodeView, cb) {
+
     var t = new RedTop()
     var az = new AwsAvailabilityZone()
     var sn = new AwsSubnet()
@@ -187,8 +324,19 @@ module.exports = class RedtopParser {
     az.setName(redtop.zones[0].name)
     sn.setNetID(redtop.zones[0].subnets[0].netid)
     inst.setId(redtop.zones[0].subnets[0].instances[0].id)
+    //console.log('inside of parse local: ')
+    //console.log(invertedNodeView)
+    this._createNodes(invertedNodeView, inst)
 
-    redisInfo.nodes.masters.forEach(function (master, index) {
+    sn.addInstance(inst)
+    az.addSubnet(sn)
+    t.addAvailabilityZone(az)
+    cb(t)
+  }
+
+  _createNodes(invertedNodeView, inst){
+    var masters = invertedNodeView.filter(function (e) { return e.lowerHash != null && e.upperHash != null})
+    masters.forEach(function(master){
       var newMaster = new ClusterNode()
       var slavers = []
       newMaster.setHost(master.ip)
@@ -196,10 +344,11 @@ module.exports = class RedtopParser {
       newMaster.setID(master.id)
       newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
       newMaster.setRole('Master')
-      master.failFlags.forEach(function(ff){
-          newMaster.addFailFlag(ff)
-      })
-      master.slaves.forEach(function (slave) {
+      // master.failFlags.forEach(function(ff){
+      //     newMaster.addFailFlag(ff)
+      // })
+      var slaves = invertedNodeView.filter(function (e) { return e.masterNode == master.id})//get slaves that repicate this master
+      slaves.forEach(function(slave){
         var newSlave = new ClusterNode()
         newSlave.setHost(slave.ip)
         newSlave.setPort(slave.port)
@@ -212,10 +361,6 @@ module.exports = class RedtopParser {
       })
       inst.addNode(newMaster)
     })
-    sn.addInstance(inst)
-    az.addSubnet(sn)
-    t.addAvailabilityZone(az)
-    cb(t)
   }
 
   _checkSplitBrain(failFlags,cb)
@@ -233,7 +378,7 @@ module.exports = class RedtopParser {
         pfList:[],     //this will be a list of nodes that see the split node as pfailed
         fineList:[]     //this will be a list of nodes that see the split node as fine
     }
-    console.log("Check split brain, failflags: \n " + failFlags)
+    //console.log("Check split brain, failflags: \n " + failFlags)
     failFlags.forEach(function(node){
         var oNode = node
         //console.log("node inside first forEach " + node)

@@ -5,146 +5,103 @@ var Commander = require('ioredis').Command
 
 // This call will contain the functionality to get information from a rediis cluster
 module.exports = class ClusterCmdManager {
-  constructor (nodes) {
-    this.cluster = new Redis.Cluster(nodes)
-    this._registerListeners()
-
-    var retry = 5
-    while (retry > 0) {
-
-      retry--
+  constructor (nodes, useCluster, cb) {
+    if (useCluster === true) {
+      this.cluster = new Redis.Cluster(nodes, {enableReadyCheck: false})
+    } else {
+      this.cluster = new Redis(nodes[0], nodes[1])
     }
+    this._registerListeners(cb)
   }
 
   // Set up handlers for ioredis connection
-  _registerListeners () {
+  _registerListeners (cb) {
     var _this = this
-
+    var connectionReturned = false
     _this.cluster.on('ready', function () {
-     // console.log('ioredis ready')
+      // console.log('cluster ready')
+      if (!connectionReturned) {
+        connectionReturned = true
+        if (cb) cb(true)
+      }
+    })
+
+    _this.cluster.on('connect', function () {
+      // console.log(_this.cluster)
+      if (!connectionReturned) {
+        connectionReturned = true
+        // for (var attr in _this.cluster) console.log(attr)
+        console.log(_this.cluster.status)
+        if (cb) cb(true)
+      }
     })
 
     _this.cluster.on('error', function (err) {
       console.log('ioredis failure: ' + err)
+      if (cb) cb(false)
     })
   }
 
-  // Cluster slots commands retuns the hash range for the entire cluster as well as node ids
-  getNodes (cb) {
-    var nodeInfo = new Commander('cluster', ['nodes'], 'utf8', function (err, result) {
+  getNodesList (cb) {
+    var _this = this
+    var nodeList = []
+    for (var master in _this.cluster.connectionPool.nodes.master) {
+      master = master.split(':')
+
+      // master[0] == node host address
+      // master[1] == node port
+      nodeList.push({
+        isMaster: true,
+        hostPort: [master[0], master[1]]
+      })
+    }
+    for (var slave in _this.cluster.connectionPool.nodes.slave) {
+      slave = slave.split(':')
+
+      // slave[0] == node host address
+      // slave[1] == node port
+      nodeList.push({
+        isMaster: false,
+        hostPort: [slave[0], slave[1]]
+      })
+    }
+
+    cb(nodeList)
+  }
+
+  // Issues the 'cluster nodes' command to the ioredis cluster contained in this object
+  // Returns:
+  //    The ID of the node which received the command
+  //    A string containing the command response for that node
+  getClusterNodes (cb) {
+    var nodes = new Commander('cluster', ['nodes'], 'utf8', function (err, result) {
+      var returnVal = {
+        id: null, // the ID of the currently reporting node
+        clusterNodes: null  // the value of the 'cluster nodes' response
+      }
+
       if (err) console.log(err)
-      var returnVal ={
-        masters: []
-      }
-      var r = result.toString("utf8").split(" ")
-      var count = 0
-      for (var i=0;i<r.length;i++)
-      {
-        var n = {
-          lowerHash: null,
-          upperHash: null,
-          ip: null,
-          port: null,
-          id: null,
-          failFlags:[],
-          slaves: []
+
+      result.toString('utf8').split('\n').forEach(function (line) {
+        if (line.includes('myself')) {
+          //console.log("cur Node Line: " + line)
+          returnVal.id = line.substr(0, line.indexOf(' ')) // extract the currently-reporting node ID
         }
-          if(r[i].includes("master"))//always checking for masters
-          {
-                if(i<6)
-                {
-                  var ipNode = r[1].toString("utf8").split(":")
-                  //0 is id
-                  //1 is ip and port
-                  //2 slave or master
-                      //if slave find the master and attach it
-                      n.id = r[0]
-                      n.ip = ipNode[0]
-                      n.port = ipNode[1]
-                  if(r[i+6].includes("-"))
-                  {
-                      var hSlots = r[i].split("\n")[0].split("-")//split the next node id off of the slots, and then split the slots
-                      n.lowerHash = hSlots[0]
-                      n.upperHash = hSlots[1]
-                  }
-                }
-                else
-                {
-                  //node id = curposition -2 and split off of newline
-                  //ip/port cur position -1
-                  var ipNode = r[i-1].toString("utf8").split(":")
-                  n.id = r[i-2].split("\n")[1]
-                  n.ip  = ipNode[0]
-                  n.port  = ipNode[1]
-                  if(r[i+6].includes("-"))
-                  {
-                      var hSlots = r[i+6].split("\n")[0].split("-")//split the next node id off of the slots, and then split the slots
-                      n.lowerHash = hSlots[0]
-                      n.upperHash = hSlots[1]
-                  }
-                }
-                returnVal.masters.push(n)
-          }
-      }
-      for (var i=0;i<r.length;i++)
-      {
-        var sn = {
-          ip: null,
-          port: null,
-          id: null,
-        }
-        if(r[i].includes("slave"))//always checking for masters
-        {
-          //console.log("found a slave")
-          if(i<6)
-          {
-            var ipNode = r[1].toString("utf8").split(":")
-                sn.id = r[0]
-                sn.ip = ipNode[0]
-                sn.port = ipNode[1]
-          }
-          else
-          {
-            var ipNode = r[i-1].toString("utf8").split(":")
-            //console.log("slave information\n" + " id: " +r[i-2].split("\n")[1] + "\n"+ " ip: " +ipNode[0] + "\n"+ " port: " +ipNode[1])
-            sn.id = r[i-2].split("\n")[1]
-            sn.ip  = ipNode[0]
-            sn.port  = ipNode[1]
-          }
-          var count = 0
-          returnVal.masters.forEach(function(master)
-          {
-            //console.log("finding masters. masterid: " + master.id + "  slaves master: " + r[i+1])
-            if(master.id.toString("utf8") == r[i+1].toString("utf8"))
-            {
-                //console.log("current slave value: "+ JSON.stringify(sn))
-                master.slaves.push(sn)
-            }
-            count++
-          })
-        }
-      }
-      //console.log(JSON.stringify(returnVal))
+      })
+      // Append the command response to the return value
+      returnVal.clusterNodes = result.toString('utf8')
+
       cb(returnVal)
     })
-    this.cluster.sendCommand(nodeInfo)
+
+    this.cluster.sendCommand(nodes)
   }
-  //not sure that we will need this
-  getErrorFlags (node, eNodes, cb) {
-    var curNode = node;
-    var nodeInstance = new Redis(node.port, node.ip)
-    console.log(nodeInstance)
-    eNodes.forEach(function(n){
-      if(curNode.id !=n.id){
-          console.log(n.id)
-            var masterFails = new Commander('cluster', ['COUNT-FAILURE-REPORTS',n.id], 'utf8', function (err, result) {
-                if (err) console.log(err)
-                curNode.failFlags.push(n.id,result)
-                console.log( node.id + " " +n.id+ " " + result)
-                cb();
-            })
-            nodeInstance.sendCommand(masterFails)
-      }
+
+  getErrorFlags (cluster) {
+    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS', /* CLUSTER ID */], 'utf8', function (err, result) {
+        result.forEach(function(flag){
+          console.log(flag)
+        })
     })
   }
 

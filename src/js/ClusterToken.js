@@ -68,46 +68,44 @@ module.exports = class ClusterToken {
     })
   }
 
-  // Use the instantiated ioredis commander to collect an aggregate of Redis Cluster info for parsing
+  // Use the instantiated ioredis commander to collect a list of "cluster nodes" command returns for all nodes
   queryRedis (cb) {
-    var _this = this
-    // TODO: expose a single function in ClusterCmdManager to get the necessary
-    // aggregate of ioredis information to be passed to the parser
-    //console.log("querying redis")
-    var i =0, j=0
-      if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
-          _this.cluster_commander.getNodes(function (nodes) {
-            _this.redisData.nodes = nodes
-            //go through each node returned from ioredis in order to interrograte each one of them
-            var eNodes;
-            _this.failFlags = []
-            nodes.masters.forEach(function(node,i){
-                eNodes = node
-                _this.cluster_commander.getClusterInfo(eNodes,function (ff) {
-                      ff = Array.from(ff)
-                      console.log("master errors" +JSON.stringify(ff))
-                      _this.failFlags.push(ff)
-                      console.log("slave count: " + eNodes.slaves.length)
-                })
-                eNodes.slaves.forEach(function(slave){
-                      console.log("slave count: " + eNodes.slaves.length)
-                      console.log("the current slave" + JSON.stringify(slave))
-                      _this.cluster_commander.getClusterInfo(slave,function (ff) {
-                            ff = Array.from(ff)
-                            console.log("slave errors" +JSON.stringify(ff))
-                            _this.failFlags.push(ff)
+    if (this.cluster_commander.cluster.status.toUpperCase() === 'READY') {
+      var _this = this
 
-                      if(i===nodes.masters.length-1)
-                      {
-                            //console.log("finished querying")
-                        cb()
-                      }
-                      })
-                })
-              //console.log("I: " + i + "node masters length: " + nodes.masters.length-1)
+      _this.cluster_commander.getNodesList(function (nodes) {
+        var nodeResponses = {
+          masters: [],
+          slaves: [],
+          failed: []
+        }
+        nodes.forEach(function (curNode, index) {
+          console.log('query redis nodes')
+          console.log(curNode)
+          var cmdManager = new ClusterCmdManager(curNode.hostPort, false, function (success) {
+            if (!success) nodeResponses.failed.push(curNode.id)
+
+            cmdManager.getClusterNodes(function (nodesReturnVal) {
+              nodesReturnVal.host = curNode.hostPort[0]
+              nodesReturnVal.port = curNode.hostPort[1]
+              //console.log("nodesReturnVal" + JSON.stringify(nodesReturnVal))
+              //console.log("curNode" + JSON.stringify(curNode))
+              if (curNode.isMaster) {
+                console.log('adding master')
+                nodeResponses.masters.push(nodesReturnVal)
+              } else {
+                console.log('adding slave')
+                nodeResponses.slaves.push(nodesReturnVal)
+              }
+
+              if ((nodeResponses.masters.length + nodeResponses.slaves.length + nodeResponses.failed.length) === nodes.length) {
+                _this.redisData = nodeResponses
+                cb()
+              }
+            })
           })
+        })
       })
-
     }
   }
 
@@ -117,17 +115,10 @@ module.exports = class ClusterToken {
     var _this = this
 
     return setInterval(function () {
-      _this.queryEC2(function () {
-        _this.queryRedis(function () {
-          // Build an object containing:
-          //  - the redtop object
-          //  - state failures
-          console.log("done with ioredis ")
-          _this.parser.parse(_this.ec2data, _this.redisData,_this.failFlags, false,function(result){
-              var clusterReport = result
-              this.subscribers.forEach(function (sub) {
-                    sub.emit('update', clusterReport)
-              })
+      _this.queryRedis(function () {
+        _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
+          _this.subscribers.forEach(function (sub) {
+            sub.emit('update', clusterReport)
           })
         })
       })
@@ -141,12 +132,11 @@ module.exports = class ClusterToken {
     var _this = this
     var returned = false
 
-
     if (nodes === 'local') {
-      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '7000']) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '30006'], true) // Connect to local cluster
     } else if (nodes) {
       if (nodes.length >= 1) {
-        this.cluster_commander = new ClusterCmdManager(nodes)
+        this.cluster_commander = new ClusterCmdManager(nodes, true)
       } else {
         console.log('Error initializing ClusterCmdManager of ' + this.clusterID + ': no nodes in list')
       }
@@ -163,15 +153,14 @@ module.exports = class ClusterToken {
         cb(false)
         returned = true
       }
-    }, 20000)
+    }, 10000)
   }
 
   // Setup for testing local cluster in development configuration
   _initLocal (_this, socket) {
-    console.log("init commander")
+
     _this.initCommander('local', function () {
       setInterval(function () {
-        console.log("about to query redis")
         _this.queryRedis(function () {
           var r = {
             type: 'Root',
@@ -190,10 +179,9 @@ module.exports = class ClusterToken {
                   }]
                 }]
               }]
-            }
-        console.log("about to parse some redis data")
+          }
 
-          _this.parser.parse(r, _this.redisData,_this.failFlags, true, function (clusterState) {
+          _this.parser.parse(r, _this.redisData, true, function (clusterState) {
             socket.emit('update', clusterState)
           })
         })
