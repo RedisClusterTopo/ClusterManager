@@ -79,29 +79,30 @@ module.exports = class ClusterToken {
           slaves: [],
           failed: []
         }
+
         nodes.forEach(function (curNode, index) {
-          console.log('query redis nodes')
-          console.log(curNode)
-          var cmdManager = new ClusterCmdManager(curNode.hostPort, false, function (success) {
-            if (!success) nodeResponses.failed.push(curNode.id)
+          var cmdManager = new ClusterCmdManager([curNode.host, curNode.port], false, function (success) {
+            if (!success) {
+              nodeResponses.failed.push(curNode.hostPort)
+              return // skip to the next item in the nodes list
+            }
 
             cmdManager.getClusterNodes(function (nodesReturnVal) {
-              nodesReturnVal.host = curNode.hostPort[0]
-              nodesReturnVal.port = curNode.hostPort[1]
-              //console.log("nodesReturnVal" + JSON.stringify(nodesReturnVal))
-              //console.log("curNode" + JSON.stringify(curNode))
-              if (curNode.isMaster) {
-                console.log('adding master')
-                nodeResponses.masters.push(nodesReturnVal)
-              } else {
-                console.log('adding slave')
-                nodeResponses.slaves.push(nodesReturnVal)
-              }
+              nodesReturnVal.host = curNode.host
+              nodesReturnVal.port = curNode.port
 
-              if ((nodeResponses.masters.length + nodeResponses.slaves.length + nodeResponses.failed.length) === nodes.length) {
-                _this.redisData = nodeResponses
-                cb()
-              }
+              cmdManager.getClusterInfo(function (infoReturnVal) {
+                nodesReturnVal.info = infoReturnVal
+                if (curNode.isMaster) {
+                  nodeResponses.masters.push(nodesReturnVal)
+                } else {
+                  nodeResponses.slaves.push(nodesReturnVal)
+                }
+                if ((nodeResponses.masters.length + nodeResponses.slaves.length + nodeResponses.failed.length) === nodes.length) {
+                  _this.redisData = nodeResponses
+                  cb()
+                }
+              })
             })
           })
         })
@@ -133,7 +134,8 @@ module.exports = class ClusterToken {
     var returned = false
 
     if (nodes === 'local') {
-      this.cluster_commander = new ClusterCmdManager(['127.0.0.1', '30006'], true) // Connect to local cluster
+      this.cluster_commander = new ClusterCmdManager([{host: '127.0.0.1', port: 30001}, {host: '127.0.0.1', port: 30002}, {host: '127.0.0.1', port: 30003},
+                                                      {host: '127.0.0.1', port: 30004}, {host: '127.0.0.1', port: 30005}, {host: '127.0.0.1', port: 30006}], true) // Connect to local cluster
     } else if (nodes) {
       if (nodes.length >= 1) {
         this.cluster_commander = new ClusterCmdManager(nodes, true)
@@ -182,6 +184,7 @@ module.exports = class ClusterToken {
           }
 
           _this.parser.parse(r, _this.redisData, true, function (clusterState) {
+            console.log(clusterState)
             socket.emit('update', clusterState)
           })
         })
