@@ -22,6 +22,7 @@ module.exports = class RedtopParser {
           _this._evalClusterState(clusterState.redtop, function (errors) {
             clusterState.stateErrors = errors
             clusterState.stateErrors.discrepancies = discrepancies
+
             cb(clusterState)
           })
         })
@@ -76,7 +77,6 @@ module.exports = class RedtopParser {
           var lowerHash = null
           var upperHash = null
           var masterNode = null
-
           // no host found in the line
           if (curNodeHost.length === 0) {
             // add the current line node to the reporting nodes' list of noAddr IDs
@@ -153,11 +153,6 @@ module.exports = class RedtopParser {
       })
     })
 
-    discrepancies.forEach(function (discrepancyList) {
-      // console.log(discrepancyList)
-    })
-    // console.log(outLookingIn)
-
     cb(outLookingIn, discrepancies)
   }
 
@@ -202,7 +197,7 @@ module.exports = class RedtopParser {
     cb(flags)
   }
 
-  _parseRedtop (ec2info, redisInfo, cb) {
+  _parseRedtop (ec2info, invertedNodeView, discrepancies, cb) {
     // Object to parse data into
     var t = new RedTop()
     var _this = this
@@ -224,7 +219,10 @@ module.exports = class RedtopParser {
     })
 
     _this._createNodes(invertedNodeView, discrepancies, function (nodeList) {
-
+      nodeList.forEach(function (node) {
+        var inst = t.getInstances().find(function (e) { return e.ip === node.host })
+        if (inst) inst.addNode(node)
+      })
     })
 
     // remove empty non-leaf nodes from topology (bottom up)
@@ -270,11 +268,11 @@ module.exports = class RedtopParser {
     var az = new AwsAvailabilityZone()
     var sn = new AwsSubnet()
     var inst = new Ec2Instance()
+
     az.setName(redtop.zones[0].name)
     sn.setNetID(redtop.zones[0].subnets[0].netid)
     inst.setId(redtop.zones[0].subnets[0].instances[0].id)
-    // console.log('inside of parse local: ')
-    // console.log(invertedNodeView)
+
     this._createNodes(invertedNodeView, discrepancies, function (nodeList) {
       nodeList.forEach(function (node) {
         inst.addNode(node)
@@ -282,6 +280,7 @@ module.exports = class RedtopParser {
       sn.addInstance(inst)
       az.addSubnet(sn)
       t.addAvailabilityZone(az)
+
       cb(t)
     })
   }

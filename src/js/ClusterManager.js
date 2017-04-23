@@ -7,15 +7,30 @@ module.exports = class ClusterManager {
     this.tokens = []
   }
 
+  getRestRequest (vpcID, socket, cb) {
+    new ClusterToken('local', socket, function (clusterState) {
+      cb(clusterState)
+    })
+  }
+
   addToken (vpcId, socket) {
     var success = false
-    if (this._isUnique(vpcId)) {
-      var c = new ClusterToken(vpcId, socket)
+    var c // the new token to be added
+
+    if (vpcId === 'local') {
+      c = new ClusterToken('local', socket)
       this.tokens.push(c)
+      this.getToken('local').addSubscriber(socket)
       success = true
     } else {
-      this.getToken(vpcId).addSubscriber(socket)
-      success = true
+      if (this._isUnique(vpcId)) {
+        c = new ClusterToken(vpcId, socket)
+        this.tokens.push(c)
+        success = true
+      } else {
+        this.getToken(vpcId).addSubscriber(socket)
+        success = true
+      }
     }
 
     return success
@@ -42,7 +57,6 @@ module.exports = class ClusterManager {
         token = t
       }
     })
-
     return token
   }
 

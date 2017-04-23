@@ -37,6 +37,12 @@ app.get('/index', function (req, res) {
   res.sendFile(path.join(__dirname, '../public', 'index.html'))
 })
 
+app.get('/api/:redisConnection', function (req, res) {
+  clusterManager.getRestRequest('local', req.params.redisConnection, function (redtopInfo) {
+    res.send(JSON.stringify(redtopInfo))
+  })
+})
+
 var clusterManager = new ClusterManager()
 
 // Add event listeners to new socket connections
@@ -47,10 +53,13 @@ io.on('connection', function (socket) {
       clusterManager.addToken('local', socket)
     })
 
+    socket.on('disconnect', function () {
+      clusterManager.getToken('local').delSubscriber(socket)
+    })
+
     return
   } else if (random) {
     socket.emit('generate random', null) // Forward the client from login to index to generate a random cluster
-
     return
   } else {
     // Register a user trying to log in normally
@@ -67,13 +76,3 @@ io.on('connection', function (socket) {
     })
   }
 })
-
-// Handle async requests for updates on a cluster
-app.post('/update', function (req, res) {
-  console.log(req.body) // The data payload sent with the POST request
-})
-
-var debugMode = true
-function debug (s) {
-  if (debugMode) console.log(s)
-}
