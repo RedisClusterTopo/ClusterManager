@@ -22,7 +22,7 @@ module.exports = class RedtopParser {
           _this._evalClusterState(clusterState.redtop, function (errors) {
             clusterState.stateErrors = errors
             clusterState.stateErrors.discrepancies = discrepancies
-            console.log(discrepancies)
+            //console.log(discrepancies)
             cb(clusterState)
           })
         })
@@ -30,7 +30,6 @@ module.exports = class RedtopParser {
         _this._parseRedtop(ec2info, redisInfo, function (rt) {
           clusterState.redtop = rt
         })
-
         _this._evalClusterState(clusterState.redtop, function (flags) {
           clusterState.stateErrors = flags
         })
@@ -76,7 +75,6 @@ module.exports = class RedtopParser {
           var lowerHash = null
           var upperHash = null
           var masterNode = null
-
           // no host found in the line
           if (curNodeHost.length === 0) {
             // add the current line node to the reporting nodes' list of noAddr IDs
@@ -300,6 +298,7 @@ module.exports = class RedtopParser {
       t.addInstance(ec2inst, sn, az)
     })
 
+
     // append cluster nodes
     redisInfo.nodes.masters.forEach(function (master, index) {
       var newMaster = new ClusterNode()
@@ -386,13 +385,13 @@ module.exports = class RedtopParser {
       sn.addInstance(inst)
       az.addSubnet(sn)
       t.addAvailabilityZone(az)
-      console.log('calling back from parseLocal')
+      //console.log('calling back from parseLocal')
       cb(t)
     })
   }
 
   _createNodes (invertedNodeView, discrepancies, inst, cb) {
-    console.log(invertedNodeView)
+    //console.log(invertedNodeView)
     var masters = invertedNodeView.filter(function (e) { return e.lowerHash != null && e.upperHash != null })
     masters.forEach(function (master) {
       var newMaster = new ClusterNode()

@@ -13,7 +13,7 @@ var RedtopParser = require('./RedtopParser.js')
 
 module.exports = class ClusterToken {
 
-  constructor (vpcId, socket) {
+  constructor (vpcId, socket,cb) {
     var _this = this
     this.clusterID = vpcId
     this.subscribers = [] // Contains a list of sockets subscribed to updates from this cluster
@@ -26,8 +26,13 @@ module.exports = class ClusterToken {
     this.updater = null // The setInterval function responsible for calling ioredis and EC2 queries
 
     // Check key/val of new connection for dev configuration
-    if (vpcId === 'local') {
+    if (vpcId === 'local' && socket != 'rest') {
       this._initLocal(this, socket)
+      this.addSubscriber(socket)
+    }else if(vpcId === 'local' && socket === 'rest'){
+      this._initLocal(this,socket, function(redtopInfo){
+        cb(redtopInfo)
+      })
     } else {
       this.addSubscriber(socket)
       // set up the initial ioredis object
@@ -54,8 +59,9 @@ module.exports = class ClusterToken {
 
   // Remove a subscriber to the cluster represented by this token
   delSubscriber (socket) {
-    this.subscibers.forEach(function (sub) {
-      // console.log(sub)
+    var _this = this
+    this.subscribers.forEach(function (sub, i) {
+       _this.subscribers.splice(i, 1)
     })
   }
 
@@ -159,7 +165,7 @@ module.exports = class ClusterToken {
   }
 
   // Setup for testing local cluster in development configuration
-  _initLocal (_this, socket) {
+  _initLocal (_this, socket, cb) {
 
     _this.initCommander('local', function () {
       setInterval(function () {
@@ -184,8 +190,13 @@ module.exports = class ClusterToken {
           }
 
           _this.parser.parse(r, _this.redisData, true, function (clusterState) {
-            console.log(clusterState)
-            socket.emit('update', clusterState)
+            //console.log(clusterState)
+            if(socket != 'rest'){
+              socket.emit('update', clusterState)
+            }
+            else {
+              cb(clusterState)
+            }
           })
         })
       }, 5000)

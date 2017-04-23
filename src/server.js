@@ -29,6 +29,14 @@ app.use('/js', express.static(path.join(__dirname, 'js')))
 app.use('/public', express.static(path.join(__dirname, 'public')))
 app.use('/css', express.static(path.join(__dirname, 'css')))
 
+app.get('/api/:redisConnection', function(req,res){
+  console.log(req.params.redisConnection)
+  clusterManager.getRestRequest('local',req.params.redisConnection, function(redtopInfo){
+    res.send(JSON.stringify(redtopInfo))
+  })
+  //clusterManager.addToken('local', socket)
+  //console.log(res)
+})
 app.get('/', function (req, res) {
   res.sendFile(path.join(__dirname, '../public', 'aws-login.html'))
 })
@@ -46,7 +54,9 @@ io.on('connection', function (socket) {
     socket.on('subscribe', function () {
       clusterManager.addToken('local', socket)
     })
-
+    socket.on('disconnect', function() {
+      clusterManager.getToken('local').delSubscriber(socket)
+    });
     return
   } else if (random) {
     socket.emit('generate random', null) // Forward the client from login to index to generate a random cluster
@@ -65,6 +75,10 @@ io.on('connection', function (socket) {
     socket.on('unsubscribe', function (clientID) {
       clusterManager.getToken(clientID).delSubscriber(socket)
     })
+
+    socket.on('disconnected', function() {
+      clusterManager.getToken(clientID).delSubscriber(socket)
+    });
   }
 })
 
