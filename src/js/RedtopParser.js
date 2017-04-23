@@ -177,21 +177,21 @@ module.exports = class RedtopParser {
     if (!redtop) cb()
 
     var flags = {
-      noExternalReplication: [], // List of masters not replicated outside AZ
+      noExternalReplication: [] // List of masters not replicated outside AZ
     }
 
-    redtop.getMasters().forEach(function (node) {
-      var replicated = false
+    var masters = redtop.getMasters()
+    masters.forEach(function (node, index) {
       redtop.getSlaves().forEach(function (slave) {
         if (slave.replicates === node.id) {
-          var sameZone = redtop.compareZones(node, slave)
-          if (!sameZone) replicated = false
+          redtop.compareZones(node.id, slave.id, function (isReplicated) {
+            if (!isReplicated) flags.noExternalReplication.push(node.id)
+          })
+        }
+        if (index === masters.length - 1) {
+          flags.noExternalReplication.push(node.id)
         }
       })
-
-      if (!replicated) {
-        flags.noExternalReplication.push(node.id)
-      }
     })
 
     cb(flags)

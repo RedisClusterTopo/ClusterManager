@@ -6,8 +6,15 @@ module.exports = class RedTop {
     this.zones = [] // The AwsAvailabilityZones associated with this object
   }
 
-  compareZones (master, slave) {
-    return this.getAvailabilityZoneByNodeID(master.id) === this.getAvailabilityZoneByNodeID(slave.id)
+  compareZones (master, slave, cb) {
+    var _this = this
+    var replicated = false
+    this.getAvailabilityZoneByNodeID(master, function (masterAZ) {
+      _this.getAvailabilityZoneByNodeID(slave, function (slaveAZ) {
+        if (masterAZ.name !== slaveAZ.name) replicated = true
+      })
+    })
+    cb(replicated)
   }
 
   // Checks for unique AvailabilityZone name
@@ -116,11 +123,11 @@ module.exports = class RedTop {
     return this.zones
   }
 
-  getAvailabilityZoneByNodeID (nodeID) {
+  getAvailabilityZoneByNodeID (nodeID, cb) {
     this.zones.forEach(function (zone) {
-      zone.getSubnets().forEach(function (subnet) {
-        subnet.getInstances().forEach(function (instance) {
-          instance.getNodes().forEach(function (node) {
+      zone.subnets.forEach(function (subnet) {
+        subnet.instances.forEach(function (instance) {
+          instance.nodes.forEach(function (node) {
             if (node.id === nodeID) return zone
           })
         })
