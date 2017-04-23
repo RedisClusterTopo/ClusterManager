@@ -96,6 +96,9 @@ module.exports = class RedtopParser {
           var isMaster = false
           if (lineArray[2].includes('master')) isMaster = true
 
+          // The 'cluster info' command returned by the currently reported-on node
+          var infoCmdValue = redisInfo.active.find(function (e) { return e.id === curNodeId }).info
+
           // Add an entry if needed
           if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
             outLookingIn.push({
@@ -106,10 +109,10 @@ module.exports = class RedtopParser {
               upperHash: upperHash,
               masterNode: masterNode,
               isMaster: isMaster,
-              clusterState: nodeResponse.info[0].split(':')[1].split('\r')[0],
-              pfailCount: nodeResponse.info[3].split(':')[1].split('\r')[0],
-              failCount: nodeResponse.info[4].split(':')[1].split('\r')[0],
-              knownCount: nodeResponse.info[5].split(':')[1].split('\r')[0],
+              clusterState: infoCmdValue[0].split(':')[1].split('\r')[0],
+              pfailCount: infoCmdValue[3].split(':')[1].split('\r')[0],
+              failCount: infoCmdValue[4].split(':')[1].split('\r')[0],
+              knownCount: infoCmdValue[5].split(':')[1].split('\r')[0],
               normal: [],
               pfail: [],
               fail: [],
@@ -181,6 +184,27 @@ module.exports = class RedtopParser {
     }
 
     var masters = redtop.getMasters()
+    var slaves = redtop.getSlaves()
+
+    masters.forEach(function (masterNode, index) {
+      var replicated = false
+      redtop.getAvailabilityZoneByNodeID(masterNode.id, function (masterAZ) {
+        slaves.forEach(function (slaveNode) {
+          if (replicated) return // Don't check anything if we already have external replication
+          if (slaveNode.replicates === masterNode.id) {
+            redtop.getAvailabilityZoneByNodeID(slaveNode.id, function (slaveAZ) {
+              if (masterAZ === slaveAZ) replicated = true
+            })
+          }
+        })
+      })
+      if (!replicated) flags.noExternalReplication.push(masterNode.id)
+      if (index === masters.length - 1) {
+        console.log(flags.noExternalReplication)
+        cb(flags)
+      }
+    })
+
     masters.forEach(function (node, index) {
       redtop.getSlaves().forEach(function (slave) {
         if (slave.replicates === node.id) {
@@ -189,7 +213,7 @@ module.exports = class RedtopParser {
           })
         }
         if (index === masters.length - 1) {
-          flags.noExternalReplication.push(node.id)
+          cb(flags)
         }
       })
     })
