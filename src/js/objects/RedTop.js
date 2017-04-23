@@ -128,7 +128,7 @@ module.exports = class RedTop {
       zone.subnets.forEach(function (subnet) {
         subnet.instances.forEach(function (instance) {
           instance.nodes.forEach(function (node) {
-            if (node.id === nodeID) return zone
+            if (node.id === nodeID) cb(zone)
           })
         })
       })

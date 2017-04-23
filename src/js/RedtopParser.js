@@ -200,7 +200,6 @@ module.exports = class RedtopParser {
       })
       if (!replicated) flags.noExternalReplication.push(masterNode.id)
       if (index === masters.length - 1) {
-        console.log(flags.noExternalReplication)
         cb(flags)
       }
     })
