@@ -12,12 +12,12 @@ module.exports = class RedtopParser {
     var _this = this
     var clusterState = {
       redtop: null,
-      stateErrors: null, // A list of possible errors in the cluster and the associated nodes
+      stateErrors: null // A list of possible errors in the cluster and the associated nodes
     }
 
     this.invertClusterNodes(redisInfo, function (invertedNodeView, discrepancies) {
       if (local) {
-        _this._parseLocal(ec2info, invertedNodeView, discrepancies, function(rt){
+        _this._parseLocal(ec2info, invertedNodeView, discrepancies, function (rt) {
           clusterState.redtop = rt
           _this._evalClusterState(clusterState.redtop, function (errors) {
             clusterState.stateErrors = errors
@@ -27,7 +27,7 @@ module.exports = class RedtopParser {
           })
         })
       } else {
-        _this._parseRedtop(ec2info, invertedNodeView, function (rt) {
+        _this._parseRedtop(ec2info, invertedNodeView, discrepancies, function (rt) {
           clusterState.redtop = rt
           _this._evalClusterState(clusterState.redtop, function (flags) {
             clusterState.stateErrors = flags

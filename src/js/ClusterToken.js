@@ -36,9 +36,9 @@ module.exports = class ClusterToken {
         _this.parser.parseNodesByInstanceInfo(_this.ec2data, function (taggedNodes) {
           _this.initCommander(taggedNodes, function (connected) {
             if (connected) {
-              _this.update()
+              _this._update()
               _this.updater = setInterval(function () {
-                _this.update()
+                _this._update()
               }, 5000)
             } else {
               // TODO emit an error (it has been 10s with out ioredis emitting 'ready')
