@@ -9,7 +9,7 @@ var RedtopParser = require('./RedtopParser.js')
 
 module.exports = class ClusterToken {
 
-  constructor (vpcId, socket, cb) {
+  constructor (vpcId, socket, cb, isRestCall) {
     var _this = this
     this.clusterID = vpcId
     this.subscribers = [] // Contains a list of sockets subscribed to updates from this cluster
@@ -20,15 +20,17 @@ module.exports = class ClusterToken {
     this.failFlags = []
     this.parser = new RedtopParser()
     this.updater = null // The setInterval function responsible for calling ioredis and EC2 queries
-
+    if (isRestCall == null) isRestCall = false
     // Check key/val of new connection for dev configuration
-    if (vpcId === 'local' && socket !== 'rest') {
-      this._initLocal(this, socket)
-      this.addSubscriber(socket)
-    } else if (vpcId === 'local' && socket === 'rest') {
-      this._initLocal(this, socket, function (redtopInfo) {
-        cb(redtopInfo)
-      })
+    if (vpcId === 'local') {
+      if (isRestCall) {
+        this._initLocal(this, socket, function (redtopInfo) {
+          cb(redtopInfo)
+        })
+      } else {
+        this._initLocal(this, socket)
+        this.addSubscriber(socket)
+      }
     } else {
       this.addSubscriber(socket)
       // set up the initial ioredis object
@@ -36,10 +38,14 @@ module.exports = class ClusterToken {
         _this.parser.parseNodesByInstanceInfo(_this.ec2data, function (taggedNodes) {
           _this.initCommander(taggedNodes, function (connected) {
             if (connected) {
-              _this._update()
-              _this.updater = setInterval(function () {
+              if (isRestCall) {
+                _this._update(cb)
+              } else {
                 _this._update()
-              }, 5000)
+                _this.updater = setInterval(function () {
+                  _this._update()
+                }, 5000)
+              }
             } else {
               // TODO emit an error (it has been 10s with out ioredis emitting 'ready')
               console.log('10s have passed since attempting ioredis connection')
@@ -113,13 +119,16 @@ module.exports = class ClusterToken {
 
   // Orchestrate information collection / parsing for info to be pushed to clients
   // TODO: store the timeout function in a location so that it can be cleared later
-  _update (timeout) {
+  _update (cb) {
     var _this = this
     _this.queryRedis(function () {
       _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
-        _this.subscribers.forEach(function (sub) {
-          sub.emit('update', clusterReport)
-        })
+        if (cb) cb(clusterReport)
+        else {
+          _this.subscribers.forEach(function (sub) {
+            sub.emit('update', clusterReport)
+          })
+        }
       })
     })
   }
@@ -181,7 +190,7 @@ module.exports = class ClusterToken {
           }
 
           _this.parser.parse(r, _this.redisData, true, function (clusterState) {
-            if (socket !== 'rest') {
+            if (socket !== null) {
               socket.emit('update', clusterState)
             } else {
               cb(clusterState)

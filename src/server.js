@@ -15,6 +15,8 @@ var ClusterManager = require('./js/ClusterManager.js')
 var random = false // Toggle whether to generate a random cluster to view
 var localCluster = false // Toggle whether to connect to a locally hosted redis cluster
 
+var clusterManager = new ClusterManager()
+
 process.argv.forEach(function (val, index, array) {
   if (val === 'random') {
     random = true
@@ -38,12 +40,16 @@ app.get('/index', function (req, res) {
 })
 
 app.get('/api/:redisConnection', function (req, res) {
-  clusterManager.getRestRequest('local', req.params.redisConnection, function (redtopInfo) {
-    res.send(JSON.stringify(redtopInfo))
-  })
+  if (localCluster) {
+    clusterManager.getRestRequest('local', function (redtopInfo) {
+      res.send(JSON.stringify(redtopInfo))
+    })
+  } else {
+    clusterManager.getRestRequest(req.params.redisConnection, function (redtopInfo) {
+      res.send(JSON.stringify(redtopInfo))
+    })
+  }
 })
-
-var clusterManager = new ClusterManager()
 
 // Add event listeners to new socket connections
 io.on('connection', function (socket) {

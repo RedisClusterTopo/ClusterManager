@@ -7,10 +7,10 @@ module.exports = class ClusterManager {
     this.tokens = []
   }
 
-  getRestRequest (vpcID, socket, cb) {
-    new ClusterToken('local', socket, function (clusterState) {
+  getRestRequest (vpcID, cb) {
+    new ClusterToken(vpcID, null, function (clusterState) {
       cb(clusterState)
-    })
+    }, true)
   }
 
   addToken (vpcId, socket) {
