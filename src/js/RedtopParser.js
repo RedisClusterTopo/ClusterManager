@@ -193,7 +193,7 @@ module.exports = class RedtopParser {
           if (replicated) return // Don't check anything if we already have external replication
           if (slaveNode.replicates === masterNode.id) {
             redtop.getAvailabilityZoneByNodeID(slaveNode.id, function (slaveAZ) {
-              if (masterAZ === slaveAZ) replicated = true
+              if (masterAZ !== slaveAZ) replicated = true
             })
           }
         })
@@ -203,21 +203,6 @@ module.exports = class RedtopParser {
         cb(flags)
       }
     })
-
-    masters.forEach(function (node, index) {
-      redtop.getSlaves().forEach(function (slave) {
-        if (slave.replicates === node.id) {
-          redtop.compareZones(node.id, slave.id, function (isReplicated) {
-            if (!isReplicated) flags.noExternalReplication.push(node.id)
-          })
-        }
-        if (index === masters.length - 1) {
-          cb(flags)
-        }
-      })
-    })
-
-    cb(flags)
   }
 
   _parseRedtop (ec2info, invertedNodeView, discrepancies, cb) {
