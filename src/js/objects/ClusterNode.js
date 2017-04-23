@@ -22,7 +22,7 @@ module.exports = class ClusterNode {
     this.seesFail = []
     this.seesConnecting = []
     this.noAddr = []
-    this.differentId = []
+    this.splitView = []
   }
 
   addHash (range) {

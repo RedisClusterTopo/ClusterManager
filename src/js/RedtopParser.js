@@ -72,6 +72,7 @@ module.exports = class RedtopParser {
         if (curNodeId.length > 0) {
           var curNodeHost = lineArray[1].split(':')[0]
           var curNodePort = lineArray[1].split(':')[1]
+          if (curNodePort.includes('@')) curNodePort = curNodePort.split('@')[0]
           var lowerHash = null
           var upperHash = null
           var masterNode = null
@@ -90,6 +91,8 @@ module.exports = class RedtopParser {
           } else {
             masterNode = lineArray[3]
           }
+          var isMaster = false
+          if (lineArray[2].includes('master')) isMaster = true
 
           // Add an entry if needed
           if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
@@ -100,6 +103,7 @@ module.exports = class RedtopParser {
               lowerHash: lowerHash,
               upperHash: upperHash,
               masterNode: masterNode,
+              isMaster: isMaster,
               clusterState: nodeResponse.info[0].split(':')[1].split('\r')[0],
               pfailCount: nodeResponse.info[3].split(':')[1].split('\r')[0],
               failCount: nodeResponse.info[4].split(':')[1].split('\r')[0],
@@ -110,6 +114,9 @@ module.exports = class RedtopParser {
               connecting: []
             })
           }
+
+          if (isMaster) outLookingIn.find(function (e) { return e.id === curNodeId })
+                                    .isMaster = true
 
           var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
 
@@ -158,7 +165,7 @@ module.exports = class RedtopParser {
         if (curNodeId.length > 0) {
           var curNodeHost = lineArray[1].split(':')[0]
           var curNodePort = lineArray[1].split(':')[1]
-
+          if (curNodePort.includes('@')) curNodePort = curNodePort.split('@')[0]
           // no host found in the line
           if (curNodeHost.length === 0) {
             discrepancies.find(function (e) { return e.id === nodeResponse.id })
@@ -174,6 +181,9 @@ module.exports = class RedtopParser {
             masterNode = lineArray[3]
           }
 
+          var isMaster = false
+          if (lineArray[2].includes('master')) isMaster = true
+
           // Add an entry if needed
           if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
             outLookingIn.push({
@@ -181,6 +191,7 @@ module.exports = class RedtopParser {
               host: curNodeHost,
               port: curNodePort,
               masterNode: masterNode,
+              isMaster: isMaster,
               clusterState: nodeResponse.info[0].split(':')[1].split('\r')[0],
               pfailCount: nodeResponse.info[3].split(':')[1].split('\r')[0],
               failCount: nodeResponse.info[4].split(':')[1].split('\r')[0],
@@ -193,7 +204,8 @@ module.exports = class RedtopParser {
               connecting: []
             })
           }
-
+          if (isMaster) outLookingIn.find(function (e) { return e.id === curNodeId})
+                                    .isMaster = true
           var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
 
           if (curReportedNode.masterNode == null || curReportedNode.masterNode === '-') {
@@ -385,14 +397,22 @@ module.exports = class RedtopParser {
       sn.addInstance(inst)
       az.addSubnet(sn)
       t.addAvailabilityZone(az)
+<<<<<<< HEAD
       //console.log('calling back from parseLocal')
+=======
+>>>>>>> 2c268653359d2b6da7fd302b22aff60149d1e581
       cb(t)
     })
   }
 
   _createNodes (invertedNodeView, discrepancies, inst, cb) {
+<<<<<<< HEAD
     //console.log(invertedNodeView)
     var masters = invertedNodeView.filter(function (e) { return e.lowerHash != null && e.upperHash != null })
+=======
+    // console.log(invertedNodeView)
+    var masters = invertedNodeView.filter(function (e) { return e.isMaster })
+>>>>>>> 2c268653359d2b6da7fd302b22aff60149d1e581
     masters.forEach(function (master) {
       var newMaster = new ClusterNode()
       newMaster.setHost(master.host)
@@ -416,7 +436,7 @@ module.exports = class RedtopParser {
         newMaster.state = 'SPLIT'
       }
 
-      invertedNodeView.filter(function (e) { return e.master === master.id }).forEach(function (s) {
+      invertedNodeView.filter(function (e) { return e.masterNode === master.id }).forEach(function (s) {
         newMaster.addSlave(s.id)
       })
 
@@ -427,11 +447,10 @@ module.exports = class RedtopParser {
       newMaster.seesPfail = master.pfail
       newMaster.seesFail = master.fail
       newMaster.seesConnecting = master.connecting
-
       inst.addNode(newMaster)
     })
 
-    var slaves = invertedNodeView.filter(function (e) { return e.lowerHash == null && e.upperHash == null }) // get slaves that repicate this master
+    var slaves = invertedNodeView.filter(function (e) { return !e.isMaster }) // get slaves that repicate this master
     slaves.forEach(function (slave) {
       var master = invertedNodeView.find(function (e) { return e.id === slave.masterNode })
       var newSlave = new ClusterNode()
@@ -479,8 +498,11 @@ module.exports = class RedtopParser {
       } else if (dis.differentID.length > 0) {
         dis.differentID.forEach(function (view) {
           // view = {sees : ID, shouldSee: ID}
-          inst.nodes.find(function (e) { return e.id === dis.id })
-                    .differentId.push(view)
+          inst.nodes.find(function (e) { return e.id === view.shouldSee })
+                    .state = 'SPLIT'
+
+          inst.nodes.find(function (e) { return e.id === view.shouldSee })
+                    .splitView.push({id: dis.id, sees: view.sees})
         })
       }
     })
