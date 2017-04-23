@@ -55,8 +55,7 @@ module.exports = class ClusterCmdManager {
           line = line.split(' ')
           var host = line[1].split(':')[0]
           var port = line[1].split(':')[1]
-          var isMaster = false
-          if (line[2].includes('master')) isMaster = true
+          if (port.includes('@')) port = port.split('@')[0]
           if (host.length > 0) nodeList.push({host: host, port: Number(port)})
         }
       })
@@ -65,29 +64,6 @@ module.exports = class ClusterCmdManager {
     })
 
     _this.cluster.sendCommand(nodes)
-    //
-    // for (var master in _this.cluster.connectionPool.nodes.master) {
-    //   master = master.split(':')
-    //
-    //   // master[0] == node host address
-    //   // master[1] == node port
-    //   nodeList.push({
-    //     isMaster: true,
-    //     hostPort: [master[0], master[1]]
-    //   })
-    // }
-    // for (var slave in _this.cluster.connectionPool.nodes.slave) {
-    //   slave = slave.split(':')
-    //
-    //   // slave[0] == node host address
-    //   // slave[1] == node port
-    //   nodeList.push({
-    //     isMaster: false,
-    //     hostPort: [slave[0], slave[1]]
-    //   })
-    // }
-    //
-    // cb(nodeList)
   }
 
   // Issues the 'cluster nodes' command to the ioredis cluster contained in this object
@@ -119,14 +95,6 @@ module.exports = class ClusterCmdManager {
     this.cluster.sendCommand(nodes)
   }
 
-  getErrorFlags (cluster) {
-    var slots = new Commander('cluster', ['COUNT-FAILURE-REPORTS', /* CLUSTER ID */], 'utf8', function (err, result) {
-        result.forEach(function (flag){
-          // console.log(flag)
-        })
-    })
-  }
-
   getClusterInfo (cb) {
     var clusterInfo = new Commander('cluster', ['info'], 'utf8', function (err, result) {
       if (err) console.log(err)
@@ -135,9 +103,5 @@ module.exports = class ClusterCmdManager {
       cb(result)
     })
     this.cluster.sendCommand(clusterInfo)
-  }
-  // for testing purposes
-  getCommands () {
-    console.log(Redis.GetBuiltinCommands())
   }
 }

@@ -22,21 +22,19 @@ module.exports = class RedtopParser {
           _this._evalClusterState(clusterState.redtop, function (errors) {
             clusterState.stateErrors = errors
             clusterState.stateErrors.discrepancies = discrepancies
-            console.log(discrepancies)
             cb(clusterState)
           })
         })
       } else {
-        _this._parseRedtop(ec2info, redisInfo, function (rt) {
+        _this._parseRedtop(ec2info, invertedNodeView, function (rt) {
           clusterState.redtop = rt
+          _this._evalClusterState(clusterState.redtop, function (flags) {
+            clusterState.stateErrors = flags
+            clusterState.stateErrors.discrepancies = discrepancies
+          })
+          cb(clusterState)
         })
-
-        _this._evalClusterState(clusterState.redtop, function (flags) {
-          clusterState.stateErrors = flags
-        })
-        cb(clusterState)
       }
-
     })
   }
 
@@ -59,7 +57,8 @@ module.exports = class RedtopParser {
     var outLookingIn = []
 
     var discrepancies = []
-    redisInfo.masters.forEach(function (nodeResponse) {
+
+    redisInfo.active.forEach(function (nodeResponse) {
       discrepancies.push({
         id: nodeResponse.id,
         noAddrList: [], // list of IDs which have no address associated
@@ -93,6 +92,7 @@ module.exports = class RedtopParser {
           } else {
             masterNode = lineArray[3]
           }
+
           var isMaster = false
           if (lineArray[2].includes('master')) isMaster = true
 
@@ -117,97 +117,11 @@ module.exports = class RedtopParser {
             })
           }
 
-          if (isMaster) outLookingIn.find(function (e) { return e.id === curNodeId })
-                                    .isMaster = true
-
-          var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
-
-          if (curReportedNode.masterNode == null || curReportedNode.masterNode === '-') {
-            if (masterNode != null && masterNode !== '-') curReportedNode.masterNode = masterNode
+          if (isMaster) {
+            outLookingIn.find(function (e) { return e.id === curNodeId })
+                        .isMaster = true
           }
 
-          if (curNodeId !== curReportedNode.id) {
-            discrepancies.find(function (e) { return e.id === nodeResponse.id })
-                  .differentID.push({
-                    sees: curNodeId,
-                    shouldSee: curReportedNode.id
-                  })
-          }
-
-          if (curReportedNode != null) {
-            if (line.includes('handshake')) {
-              curReportedNode.connecting.push(nodeResponse.id)
-            } else if (line.includes('myself')) {
-              curReportedNode.normal.push(nodeResponse.id)
-            } else if (line.includes('fail?')) {
-              curReportedNode.pfail.push(nodeResponse.id)
-            } else if (line.includes('fail')) {
-              curReportedNode.fail.push(nodeResponse.id)
-            } else {
-              curReportedNode.normal.push(nodeResponse.id)
-            }
-          }
-        }
-      })
-    })
-
-    redisInfo.slaves.forEach(function (nodeResponse) {
-      discrepancies.push({
-        id: nodeResponse.id,
-        noAddrList: [], // list of IDs which have no address associated
-        differentID: [] // { whatTheNodeShouldSee: ID, whatTheNodeSees: ID }
-      })
-      nodeResponse.clusterNodes.split('\n').forEach(function (line) {
-        var lineArray = line.split(' ')
-        var curNodeId = lineArray[0] // the current node ID being inspected
-        var lowerHash = null
-        var upperHash = null
-        var masterNode = null
-
-        if (curNodeId.length > 0) {
-          var curNodeHost = lineArray[1].split(':')[0]
-          var curNodePort = lineArray[1].split(':')[1]
-          if (curNodePort.includes('@')) curNodePort = curNodePort.split('@')[0]
-          // no host found in the line
-          if (curNodeHost.length === 0) {
-            discrepancies.find(function (e) { return e.id === nodeResponse.id })
-                  .noAddrList.push(curNodeId)
-
-            return
-          }
-
-          if (lineArray[2].includes('master') && lineArray[8] != null) {
-            lowerHash = lineArray[8].split('-')[0]
-            upperHash = lineArray[8].split('-')[1]
-          } else {
-            masterNode = lineArray[3]
-          }
-
-          var isMaster = false
-          if (lineArray[2].includes('master')) isMaster = true
-
-          // Add an entry if needed
-          if (outLookingIn.filter(function (e) { return e.host === curNodeHost && e.port === curNodePort }).length === 0) {
-            outLookingIn.push({
-              id: curNodeId,
-              host: curNodeHost,
-              port: curNodePort,
-              masterNode: masterNode,
-              isMaster: isMaster,
-              clusterState: nodeResponse.info[0].split(':')[1].split('\r')[0],
-              pfailCount: nodeResponse.info[3].split(':')[1].split('\r')[0],
-              failCount: nodeResponse.info[4].split(':')[1].split('\r')[0],
-              knownCount: nodeResponse.info[5].split(':')[1].split('\r')[0],
-              lowerHash: lowerHash,
-              upperHash: upperHash,
-              normal: [],
-              pfail: [],
-              fail: [],
-              connecting: []
-            })
-          }
-          if (isMaster) outLookingIn.find(function (e) { return e.id === curNodeId})
-                                    .isMaster = true
           var curReportedNode = outLookingIn.find(function (e) { return e.host === curNodeHost && e.port === curNodePort })
 
           if (curReportedNode.masterNode == null || curReportedNode.masterNode === '-') {
@@ -274,12 +188,9 @@ module.exports = class RedtopParser {
     redtop.getMasters().forEach(function (node) {
       var replicated = false
       redtop.getSlaves().forEach(function (slave) {
-        // check each slaves' replicates field against the master's id
         if (slave.replicates === node.id) {
-          // check that the master and slave who replicates it are in different AZ
-          if (redtop.getAvailabilityZoneByNodeID(slave.replicates) !== redtop.getAvailabilityZoneByNodeID(node.id)) {
-            replicated = true
-          }
+          var sameZone = redtop.compareZones(node, slave)
+          if (!sameZone) replicated = false
         }
       })
 
@@ -312,48 +223,18 @@ module.exports = class RedtopParser {
       t.addInstance(ec2inst, sn, az)
     })
 
-    // append cluster nodes
-    redisInfo.nodes.masters.forEach(function (master, index) {
-      var newMaster = new ClusterNode()
+    _this._createNodes(invertedNodeView, discrepancies, function (nodeList) {
 
-      newMaster.setHost(master.ip)
-      newMaster.setPort(master.port)
-      newMaster.setID(master.id)
-      newMaster.addHash({lower: master.lowerHash, upper: master.upperHash})
-      newMaster.setRole('Master')
-
-      // create slaves for given master
-      master.slaves.forEach(function (slave) {
-        var newSlave = new ClusterNode()
-        newSlave.setHost(slave.ip)
-        newSlave.setPort(slave.port)
-        newSlave.setID(slave.id)
-        newSlave.setRole('Slave')
-        newSlave.addHash({lower: master.lowerHash, upper: master.upperHash})
-        newMaster.addSlave(slave.id)
-        newSlave.setReplicates(master.id)
-        t.getInstances().forEach(function (instance) {
-          if (instance.ip === slave.ip) instance.addNode(newSlave) // add slave to correct instance
-        })
-      })
-
-      t.getInstances().forEach(function (instance) {
-        if (instance.ip === master.ip) {
-          instance.addNode(newMaster) // add master to correct instance
-        }
-      })
     })
 
     // remove empty non-leaf nodes from topology (bottom up)
     _this._cleanInstances(t, function (redtop) {
       _this._cleanSubnets(redtop, function (redtop) {
         _this._cleanAvailabilityZones(redtop, function (redtop) {
-          t = redtop
+          cb(redtop)
         })
       })
     })
-
-    cb(t)
   }
 
   _cleanInstances (redtop, cb) {
@@ -394,7 +275,10 @@ module.exports = class RedtopParser {
     inst.setId(redtop.zones[0].subnets[0].instances[0].id)
     // console.log('inside of parse local: ')
     // console.log(invertedNodeView)
-    this._createNodes(invertedNodeView, discrepancies, inst, function (int) {
+    this._createNodes(invertedNodeView, discrepancies, function (nodeList) {
+      nodeList.forEach(function (node) {
+        inst.addNode(node)
+      })
       sn.addInstance(inst)
       az.addSubnet(sn)
       t.addAvailabilityZone(az)
@@ -402,8 +286,9 @@ module.exports = class RedtopParser {
     })
   }
 
-  _createNodes (invertedNodeView, discrepancies, inst, cb) {
-    // console.log(invertedNodeView)
+  _createNodes (invertedNodeView, discrepancies, cb) {
+    var nodeList = []
+
     var masters = invertedNodeView.filter(function (e) { return e.isMaster })
     masters.forEach(function (master) {
       var newMaster = new ClusterNode()
@@ -439,7 +324,7 @@ module.exports = class RedtopParser {
       newMaster.seesPfail = master.pfail
       newMaster.seesFail = master.fail
       newMaster.seesConnecting = master.connecting
-      inst.addNode(newMaster)
+      nodeList.push(newMaster)
     })
 
     var slaves = invertedNodeView.filter(function (e) { return !e.isMaster }) // get slaves that repicate this master
@@ -477,147 +362,31 @@ module.exports = class RedtopParser {
       newSlave.seesNormal = slave.normal
       newSlave.seesPfail = slave.pfail
       newSlave.seesFail = slave.fail
-
-      inst.addNode(newSlave)
+      nodeList.push(newSlave)
     })
 
+    /*
+    discrepancies:
+      id: reporting node ID,
+      noAddrList: IDs this node sees with no address associated,
+      differentID: a report of the ID the node should see for a given host/port,
+            and the one it actually sese
+    */
     discrepancies.forEach(function (dis) {
       if (dis.noAddrList.length > 0) {
         dis.noAddrList.forEach(function (noAddrId) {
-          inst.nodes.find(function (e) { return e.id === dis.id })
+          nodeList.find(function (e) { return e.id === dis.id })
                     .noAddr.push(noAddrId)
         })
       } else if (dis.differentID.length > 0) {
         dis.differentID.forEach(function (view) {
           // view = {sees : ID, shouldSee: ID}
-          inst.nodes.find(function (e) { return e.id === view.shouldSee })
-                    .state = 'SPLIT'
-
-          inst.nodes.find(function (e) { return e.id === view.shouldSee })
-                    .splitView.push({id: dis.id, sees: view.sees})
+          var n = nodeList.nodes.find(function (e) { return e.id === view.shouldSee })
+          n.state = 'SPLIT'
+          n.splitView.push({id: dis.id, sees: view.sees})
         })
       }
     })
-    cb(inst)
-  }
-
-  _checkSplitBrain (failFlags,cb)
-  {
-    // console.log("The fail flags array monstrosity" + failFlags[0])
-    var _this = this
-    var failFlags = failFlags
-    var sbMaster = 0
-    var alreadyDetected = ""  // string that will contain comma seperatedids of nodes already determined to be split
-    var sbList = []
-    var splitBrain = {
-        splitNode : null,// this will be the id of the node that the cluster is in contention over
-        ffList: [],// this will be a list of nodes that see the split node as failed
-        pfList: [],// this will be a list of nodes that see the split node as pfailed
-        fineList: []// this will be a list of nodes that see the split node as fine
-      }
-    // console.log("Check split brain, failflags: \n " + failFlags)
-    failFlags.forEach(function(node){
-        var oNode = node
-        //console.log("node inside first forEach " + node)
-        node.forEach(function(flag){
-          splitBrain =   {
-                splitNode : null, //this will be the id of the node that the cluster is in contention over
-                ffList:[],     //this will be a list of nodes that see the split node as failed
-                pfList:[],     //this will be a list of nodes that see the split node as pfailed
-                fineList:[]     //this will be a list of nodes that see the split node as fine
-            }
-          var flag = flag
-          var matchFound = 0
-          var sbMaster = 0
-          if ( !alreadyDetected.includes(flag[2]))
-          {
-          //console.log("2Failflags: " +failFlags)
-          //var ifailFlags = ofailFlags;
-          failFlags.forEach(function(iNode){
-            var iNode = iNode
-            var unFoundFailure = 0//use to determine if there are nodes that disagree on failures
-            var unFoundLocation =0
-            //console.log("Current state of checks, currentflag: \n"+flag +" \n iNodeList: \n"+ iNode)
-             for (var i = 0 ; i<iNode.length; i++)
-             {
-                //if nodes have the same node marked as pfail and fail
-
-                if(flag[0] != iNode[i][0] && flag[2] != iNode[i][0])
-                {
-                  //console.log("flags! \n flag: \n" +flag[0] + " \n iNode \n " + iNode[i] )
-                    if(flag[2] == iNode[i][2])//check for the same node ids, we are looking at the target node here
-                    {
-                          unFoundFailure = 2
-                          //if we have the same node check for matching fail flags
-                          // console.log("found the same flag! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
-                          if(flag[1] != iNode[i][1])//the flags are the same, so we add the iNode flag to the
-                          {
-                                //console.log("unequal flags! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
-                                _this.sb =1
-                                sbMaster = 1
-                                if( iNode[i][1].includes("fail?"))
-                                {
-
-                                    splitBrain.pfList.push(iNode[i][0])//push the id of the other node into the list
-                                }
-                                else
-                                {
-                                    splitBrain.ffList.push(iNode[i][0])
-                                }
-                          }
-                          else
-                          {
-                            // console.log("flags are equal!\n flag: \n" +flag + " \n iNode \n " + iNode[i] )
-                            //unFoundFailure =2
-                            if(iNode[i][1].includes("fail?"))
-                            {
-                                splitBrain.pfList.push(iNode[i][0])//push the id of the other node into the list
-                            }
-                            else
-                            {
-                                splitBrain.ffList.push(iNode[i][0])
-                            }
-                          }
-                    }
-                    else if(unFoundFailure ==0)
-                    {
-                        //console.log("unfound failure flags! \n flag: \n" +flag + " \n iNode \n " + iNode[i] )
-                        unFoundFailure = 1
-                        unFoundLocation = i
-                    }
-              }
-              }
-              if(unFoundFailure == 1)//we have finished iterating
-              {
-                  //console.log("unfound flags")
-                  //console.log("Checking the index size: " + i + " checking the curNodelength: " + iNode.length)
-                  _this.sb =1
-                  sbMaster = 1
-                  splitBrain.fineList.push(iNode[unFoundLocation][0])
-                  unFoundFailure = 0
-              }
-
-          })
-        }
-        if(sbMaster == 1)
-        {
-          // console.log("pushing split node information")
-          splitBrain.splitNode = flag[2]
-          if( flag[1].includes("fail?"))
-          {
-
-              splitBrain.pfList.push(flag[0])//push the id of the other node into the list
-          }
-          else
-          {
-              splitBrain.ffList.push(flag[0])
-          }
-          sbList.push(splitBrain)
-          alreadyDetected +=  ", " + flag[2]
-          sbMaster = 0
-        }
-        })
-    })
-    cb(sbList,_this.sb)
+    cb(nodeList)
   }
 }

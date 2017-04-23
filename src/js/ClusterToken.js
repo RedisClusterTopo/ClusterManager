@@ -34,8 +34,12 @@ module.exports = class ClusterToken {
       _this.queryEC2(function () {
         _this.parser.parseNodesByInstanceInfo(_this.ec2data, function (taggedNodes) {
           _this.initCommander(taggedNodes, function (connected) {
-            if (connected) _this.updater = _this.update(5000)
-            else {
+            if (connected) {
+              _this.update()
+              _this.updater = setInterval(function () {
+                _this.update()
+              }, 5000)
+            } else {
               // TODO emit an error (it has been 10s with out ioredis emitting 'ready')
               console.log('10s have passed since attempting ioredis connection')
             }
@@ -75,8 +79,7 @@ module.exports = class ClusterToken {
 
       _this.cluster_commander.getNodesList(function (nodes) {
         var nodeResponses = {
-          masters: [],
-          slaves: [],
+          active: [],
           failed: []
         }
 
@@ -93,12 +96,8 @@ module.exports = class ClusterToken {
 
               cmdManager.getClusterInfo(function (infoReturnVal) {
                 nodesReturnVal.info = infoReturnVal
-                if (curNode.isMaster) {
-                  nodeResponses.masters.push(nodesReturnVal)
-                } else {
-                  nodeResponses.slaves.push(nodesReturnVal)
-                }
-                if ((nodeResponses.masters.length + nodeResponses.slaves.length + nodeResponses.failed.length) === nodes.length) {
+                nodeResponses.active.push(nodesReturnVal)
+                if ((nodeResponses.active.length + nodeResponses.failed.length) === nodes.length) {
                   _this.redisData = nodeResponses
                   cb()
                 }
@@ -114,13 +113,10 @@ module.exports = class ClusterToken {
   // TODO: store the timeout function in a location so that it can be cleared later
   _update (timeout) {
     var _this = this
-
-    return setInterval(function () {
-      _this.queryRedis(function () {
-        _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
-          _this.subscribers.forEach(function (sub) {
-            sub.emit('update', clusterReport)
-          })
+    _this.queryRedis(function () {
+      _this.parser.parse(_this.ec2data, _this.redisData, false, function (clusterReport) {
+        _this.subscribers.forEach(function (sub) {
+          sub.emit('update', clusterReport)
         })
       })
     })
@@ -160,7 +156,6 @@ module.exports = class ClusterToken {
 
   // Setup for testing local cluster in development configuration
   _initLocal (_this, socket) {
-
     _this.initCommander('local', function () {
       setInterval(function () {
         _this.queryRedis(function () {
@@ -191,16 +186,6 @@ module.exports = class ClusterToken {
       }, 5000)
     })
   }
-    //     _this.parser.parse(r, _this.redisData,_this.failFlags, true,function(result){
-    //         var clusterReport = result
-    //         console.log("finsihed parsing")
-    //         _this.subscribers.forEach(function (sub) {
-    //               sub.emit('update', clusterReport)
-    //         })
-    //     })
-    //   })
-    // }, 5000)
-    // }
 
   // Check to see if a socket.io connection is already subscribed to the token
   _isUniqueSocket (socket) {
@@ -212,9 +197,9 @@ module.exports = class ClusterToken {
 
     return unique
   }
-  addFailFlag(ff)
-  {
-      this.failFlags.push(ff)
+
+  addFailFlag (ff) {
+    this.failFlags.push(ff)
   }
   setEC2Data (d) {
     this.ec2data = d

@@ -6,6 +6,10 @@ module.exports = class RedTop {
     this.zones = [] // The AwsAvailabilityZones associated with this object
   }
 
+  compareZones (master, slave) {
+    return this.getAvailabilityZoneByNodeID(master.id) === this.getAvailabilityZoneByNodeID(slave.id)
+  }
+
   // Checks for unique AvailabilityZone name
   addAvailabilityZone (az) {
     var f = false
